@@ -49,10 +49,12 @@ COGNITIVE_DX = {
 
 def load_patients_sql(connection):
 	df = pd.read_sql_query(f'SELECT * FROM {PATIENT_DATA_TABLE}', con)
-	clinical_data = pd.read_sql_query(f'SELECT * FROM {CLINICAL_DATA_TABLE}', con)
-	df = df.merge(clinical_data, on='pid')
 	clean_patient_data(df)
-	clean_clinical_data(df)
+	
+	clinical_data = pd.read_sql_query(f'SELECT * FROM {CLINICAL_DATA_TABLE}', con)
+	clean_clinical_data(clinical_data)
+	
+	df = df.merge(clinical_data, on='pid')
 	return df
 
 
@@ -137,9 +139,8 @@ OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_typos, transform_opt, tran
 
 
 def clean_patient_data(df):
-	df['sexo'] = df['sexo'].astype('category')
-	df['exitus'] = transform_bool(df.exitus, inplace=True)
-	
+	df['sexo'] = df.sexo.astype('category')
+	apply_pipeline(df, 'exitus', OPT_BOOL_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fecha_exitus', OPT_DATE_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fecha_nacimiento', OPT_DATE_PIPELINE, inplace=True)
 
@@ -173,25 +174,31 @@ def add_patient_genetic_data(df):
 def clean_clinical_data(df):
 	apply_pipeline(df, 'fecha_visita_datos_clinicos', OPT_DATE_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fecha_inicio_clinica', OPT_DATE_PIPELINE, inplace=True)
-	apply_pipeline(df, 'fecha_inicio_riluzol', OPT_DATE_PIPELINE, inplace=True)
-	apply_pipeline(df, 'fumador', OPT_BOOL_PIPELINE, inplace=True)
-	apply_pipeline(df, 'riluzol', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_diagnostico_ELA', OPT_DATE_PIPELINE, inplace=True)
+	
+	df['fenotipo_al_diagnostico'] = df.fenotipo_al_diagnostico.replace(ALS_PHENOTYPES).astype('category')
+	df['fenotipo_al_exitus'] = df.fenotipo_al_exitus.replace(ALS_PHENOTYPES).astype('category')
+	apply_pipeline(df, 'deterioro_cognitivo', OPT_BOOL_PIPELINE, inplace=True)
+	df['estudio_cognitivo'] = df['estudio_cognitivo'].replace(COGNITIVE_DX).astype('category')
+	
+	add_patient_genetic_data(df)
 	
 	apply_pipeline(df, 'historia_familiar', OPT_BOOL_PIPELINE, inplace=True)
 	apply_pipeline(df, 'historia_familiar_motoneurona', OPT_BOOL_PIPELINE, inplace=True)
 	apply_pipeline(df, 'historia_familiar_alzheimer', OPT_BOOL_PIPELINE, inplace=True)
 	apply_pipeline(df, 'historia_familiar_parkinson', OPT_BOOL_PIPELINE, inplace=True)
 	
-	add_patient_genetic_data(df)
+	apply_pipeline(df, 'fumador', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'riluzol', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_inicio_riluzol', OPT_DATE_PIPELINE, inplace=True)
 	
-	df['fenotipo_al_diagnostico'] = df['fenotipo_al_diagnostico'].replace(ALS_PHENOTYPES).astype('category')
-	df['fenotipo_al_exitus'] = df['fenotipo_al_exitus'].replace(ALS_PHENOTYPES).astype('category')
-	df['estudio_cognitivo'] = df['estudio_cognitivo'].replace(COGNITIVE_DX).astype('category')
-	
-	df.rename({
+	df.rename(columns={
 		'fecha_visita_datos_clinicos': 'fecha_primera_visita',
+		'fecha_inicio_clinica': 'inicio_clinica',
+		'fecha_diagnostico_ELA': 'fecha_dx',
 		'fenotipo_al_diagnostico': 'fenotipo_dx',
 		'fenotipo_al_exitus': 'fenotipo_exitus',
+		'fecha_inicio_riluzol': 'inicio_riluzol',
 	}, inplace=True)
 
 
@@ -215,13 +222,11 @@ def clean_als_data(df):
 	apply_pipeline(df, 'mitos', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_pipeline(df, 'kings', OPT_NUMBER_PIPELINE, inplace=True)
 	
-	df.rename({
+	df.rename(columns={
 		'total': 'alsfrs',
 		'total_bulbar': 'alsfrs_resp',
 		'fecha_visita_esc_val_ela': 'fecha_visita',
 	}, inplace=True)
-	
-	return df
 
 def clean_resp_data(df):
 	apply_pipeline(df, 'fecha_visita_fun_res', OPT_DATE_PIPELINE, inplace=True)
@@ -286,7 +291,7 @@ def clean_resp_data(df):
 	apply_pipeline(df, 'fvc_sentado_absoluto', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fvc_estirado_absoluto', OPT_NUMBER_PIPELINE, inplace=True)
 	
-	df.rename({
+	df.rename(columns={
 		'fecha_visita_fun_res': 'fecha_visita',
 		'sas_no_claramanete_obstructivas': 'sas_no_claramente_obstructivas',
 		'sintomas_sintomas_de_hipoventilacion_nocturna': 'sintomas_hipoventilacion_nocturna',
@@ -335,7 +340,7 @@ def clean_nutr_data(df):
 	apply_pipeline(df, 'suplementacion_nutricional_entera', OPT_BOOL_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace=True)
 
-	df.rename({
+	df.rename(columns={
 		'fecha_visita_datos_antro': 'fecha_visita',
 		'retirada': 'retirada_peg',
 		'restrenimiento': 'estreñimiento',

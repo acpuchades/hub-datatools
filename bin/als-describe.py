@@ -21,7 +21,7 @@ if __name__ == '__main__':
 		resp_data = load_snapshot_data(args.datadir, 'resp_data')
 		nutr_data = load_snapshot_data(args.datadir, 'nutr_data')
 
-		cases = patients[patients.fecha_diagnostico_ELA != False]
+		cases = patients[patients.fecha_dx != False]
 		gene_cases = cases[cases.c9_status.notna() | cases.sod1_status.notna() | cases.atxn2_status.notna()]
 
 		print('Biogen Extant Task 1')
