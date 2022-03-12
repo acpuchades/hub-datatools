@@ -282,7 +282,11 @@ def clean_resp_data(df):
 		'fecha_visita_fun_res': 'fecha_visita',
 		'sas_no_claramanete_obstructivas': 'sas_no_claramente_obstructivas',
 		'sintomas_sintomas_de_hipoventilacion_nocturna': 'sintomas_hipoventilacion_nocturna',
-	})
+		'motivo_retirada_vmi_intolerancia': 'motivo_retirada_vmni_intolerancia',
+		'motivo_retirada_vmi_no_cumplimiento': 'motivo_retirada_vmni_no_cumplimiento',
+		'motivo_retirada_vmi_rechazo_del_paciente': 'motivo_retirada_vmni_rechazo',
+		'motivo_retirada_vmi_otros': 'motivo_retirada_vmni_otros',
+	}, inplace=True)
 
 
 def clean_nutr_data(df):
