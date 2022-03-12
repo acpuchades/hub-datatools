@@ -37,8 +37,28 @@ if __name__ == '__main__':
 		print('Biogen Extant Task 2')
 		print('--------------------')
 		print('> Number of cases with follow-up data available:')
-		print(f'\t* 1+ follow-up -> {len(als_data["pid"].value_counts())}')
-		print(f'\t* 2+ follow-up -> {sum(als_data["pid"].value_counts() >= 2)}')
+		print(f'\t* 1+ follow-up -> {len(als_data.pid.value_counts())}')
+		print(f'\t* 2+ follow-up -> {sum(als_data.pid.value_counts() >= 2)}')
+		print()
+		
+		print('Biogen Extant Task 3')
+		print('--------------------')
+		print(f'> Time to ambulation support: {len(als_data[als_data.caminar <= 2].pid.value_counts())}')
+		print(f'> Time to CPAP: {len(resp_data[resp_data.cpap.fillna(False)].pid.value_counts())}')
+		print(f'> Time to VMNI: {len(resp_data[resp_data.portador_vmni.fillna(False)].pid.value_counts())}')
+		print(f'> Time to PEG: {len(nutr_data[nutr_data.indicacion_peg.fillna(False)].pid.value_counts())}')
+		print(f'> Time to death: {len(cases[~cases.fecha_exitus.isna()])}')
+		print()
+		
+		print('Biogen Extant Task 4')
+		print('--------------------')
+		print(f'> Patients on Riluzole: {len(cases[cases.riluzol.fillna(False)])}')
+		print(f'> Time to Riluzole: {len(cases[~cases.inicio_riluzol.isna()])}')
+		print()
+		
+		print('Biogen Extant Task 6')
+		print('--------------------')
+		print(f'> Patients currently working: {len(cases[cases.situacion_activa])}')
 		print()
 
 	except Exception as e:
