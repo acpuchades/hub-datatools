@@ -98,14 +98,21 @@ def transform_strip(data, **kwargs):
 	return data.str.strip()
 
 
-def transform_fix_dates(data, **kwargs):
+def transform_fix_typos(data, **kwargs):
+	data = data.str.replace(r'^º', '', regex=True)
+	data = data.str.replace(r'º$', '', regex=True)
+	return data
+
+
+def transform_fix_date_typos(data, **kwargs):
 	data = data.str.replace(r'^\?\?', '01', regex=True)
-	data = data.str.replace('-', '/', regex=False)
+	data = data.str.replace(r'-+', '/', regex=True)
 	data = data.str.replace(r'^(\d{1,2})/(\d{1,2})(\d{2,4})$', r'\1/\2/\3', regex=True)
 	return data
 
-def transform_date(data, format='%d/%m/%Y', exact=True, **kwargs):
-	return pd.to_datetime(data, format=format, exact=exact)
+
+def transform_date(data, yearfirst=False, dayfirst=True, format=None, exact=True, **kwargs):
+	return pd.to_datetime(data, yearfirst=yearfirst, dayfirst=dayfirst, format=format, exact=exact)
 
 
 def transform_number(data, errors='raise', **kwargs):
@@ -124,9 +131,10 @@ def apply_pipeline(df, field, pipeline, inplace=False, **kwargs):
 	return data
 
 
-OPT_BOOL_PIPELINE   = (transform_strip, transform_opt, transform_bool)
-OPT_DATE_PIPELINE   = (transform_strip, transform_opt, transform_fix_dates, transform_date)
-OPT_NUMBER_PIPELINE = (transform_strip, transform_opt, transform_number)
+OPT_BOOL_PIPELINE   = (transform_strip, transform_fix_typos, transform_opt, transform_bool)
+OPT_DATE_PIPELINE   = (transform_strip, transform_fix_typos, transform_opt, transform_fix_date_typos, transform_date)
+OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_typos, transform_opt, transform_number)
+
 
 def clean_patient_data(df):
 	df['sexo'] = df['sexo'].astype('category')
@@ -290,7 +298,48 @@ def clean_resp_data(df):
 
 
 def clean_nutr_data(df):
-	pass
+	df.loc[df.id == '67e615f4-5f01-11eb-a21b-8316bff80df0', 'fecha_visita_datos_antro'] = '03-12-2021' # was '03-12-20219'
+	df.loc[df.id == 'f9054526-1dcc-11eb-bb4a-9745fc970131', 'fecha_indicacion_peg'] = '23-10-2020' # was '23-10-20020'
+	df.loc[df.id == '8c5b0f46-df7a-11e9-9c30-274ab37b3217', 'fecha_indicacion_peg'] = '20-07-2018' # was '20-07-3018'
+	df.loc[df.id == 'eb700688-3dfe-11eb-9383-d3a3b2195eff', 'fecha_complicacion_peg'] = '22-11-2020' # was '22-11-202'
+	df.replace('29-02-2015', '28-02-2015', regex=False, inplace=True) # 2015 was not a leap year
+	
+	apply_pipeline(df, 'fecha_visita_datos_antro', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'peso', OPT_NUMBER_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_peso', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'estatura', OPT_NUMBER_PIPELINE, inplace=True)
+	apply_pipeline(df, 'imc_actual', OPT_NUMBER_PIPELINE, inplace=True)
+	apply_pipeline(df, 'peso_premorbido', OPT_NUMBER_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_peso_premorbido', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'indicacion_peg', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_indicacion_peg', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'motivo_indicacion_peg_disfagia', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'motivo_indicacion_peg_perdida_de_peso', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'motivo_indicacion_peg_insuficiencia_respiratoria', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'motivo_indicacion_peg_otro', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'portador_peg', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_colocacion_peg', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'uso_peg', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'complicacion_peg', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_complicacion_peg', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'retirada', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_retirada_peg', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'disfagia', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'espesante', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_inicio_espesante', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'suplementacion_nutricional_oral', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_suplementacion_nutricional', OPT_DATE_PIPELINE, inplace=True)
+	apply_pipeline(df, 'restrenimiento', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'laxante', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'peso_colocacion_peg', OPT_NUMBER_PIPELINE, inplace=True)
+	apply_pipeline(df, 'suplementacion_nutricional_entera', OPT_BOOL_PIPELINE, inplace=True)
+	apply_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace=True)
+
+	df.rename({
+		'fecha_visita_datos_antro': 'fecha_visita',
+		'retirada': 'retirada_peg',
+		'restrenimiento': 'estreñimiento',
+	}, inplace=True)
 
 
 def make_argument_parser(name=sys.argv[0]):
