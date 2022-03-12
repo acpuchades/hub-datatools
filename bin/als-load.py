@@ -20,6 +20,21 @@ NA_VALUES    = ('', '-', 'NS/NC', 'NA')
 TRUE_VALUES  = ('Sí', 'TRUE')
 FALSE_VALUES = ('No', 'FALSE')
 
+WORKING_STATUS = {
+	'-': None,
+	'Incapacitado (o con invalidez permanente)': 'Discapacidad',
+	'Jubilado': 'Jubilado',
+	'Labores de la casa': 'Hogar',
+	'Parado': 'Desempleado',
+	'Parado con subsidio | Prestación': 'Desempleado',
+	'Trabaja': 'Trabajando',
+	'Otra': 'Otro',
+}
+
+ACTIVE_WORKING_STATUS = (
+	'Trabaja', 'Hogar'
+)
+
 ALS_PHENOTYPES = {
 	'-': None,
 	'Atrofia Muscular Progresiva (AMP)': 'AMP',
@@ -143,6 +158,13 @@ def clean_patient_data(df):
 	apply_pipeline(df, 'exitus', OPT_BOOL_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fecha_exitus', OPT_DATE_PIPELINE, inplace=True)
 	apply_pipeline(df, 'fecha_nacimiento', OPT_DATE_PIPELINE, inplace=True)
+	
+	df['situacion_laboral_actual'] = df.situacion_laboral_actual.replace(WORKING_STATUS).astype('category')
+	df['situacion_activa'] = df.situacion_laboral_actual.isin(ACTIVE_WORKING_STATUS)
+	
+	df.rename(columns={
+		'situacion_laboral_actual': 'situacion_laboral',
+	}, inplace=True)
 
 
 def add_patient_genetic_data(df):
