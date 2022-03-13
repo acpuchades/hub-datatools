@@ -5,8 +5,8 @@ import sqlite3
 
 CMDLINE_SHORT  = '-u'
 CMDLINE_KWARGS = {
-	'metavar': 'FILE',
-	   'help': 'Path to SQLite file to import',
+	   'help': 'SQLite file to load data from',
+	'metavar': 'DATABASE_FILE',
 }
 
 
