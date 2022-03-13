@@ -52,7 +52,7 @@ def transform_number(data, errors='raise', **kwargs):
 	return pd.to_numeric(data, errors=errors)
 
 
-def apply_pipeline(df, field, pipeline, inplace=False, **kwargs):
+def apply_transform_pipeline(df, field, pipeline, inplace=False, **kwargs):
 	data = df[field]
 	for fn in pipeline:
 		data = fn(data, **kwargs, inplace=inplace)
