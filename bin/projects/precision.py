@@ -1,13 +1,11 @@
-#!/usr/bin/env python3
-
-from core import *
+from serialize import load_data
 
 
 def describe(datadir):
-	patients  = load_snapshot_data(datadir, 'patients')
-	als_data  = load_snapshot_data(datadir, 'als_data')
-	resp_data = load_snapshot_data(datadir, 'resp_data')
-	nutr_data = load_snapshot_data(datadir, 'nutr_data')
+	patients  = load_data(datadir, 'ufmn_patients')
+	als_data  = load_data(datadir, 'ufmn_als_data')
+	resp_data = load_data(datadir, 'ufmn_resp_data')
+	nutr_data = load_data(datadir, 'ufmn_nutr_data')
 	
 	cases = patients[patients.fecha_dx != False]
 	gene_cases = cases[cases.c9_status.notna() | cases.sod1_status.notna() | cases.atxn2_status.notna()]
