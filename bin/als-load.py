@@ -379,9 +379,10 @@ def make_argument_parser(name=sys.argv[0]):
 
 def save_snapshot(path, mapping, replace=False):
 	datadir = Path(path)
-	datadir.mkdir(parents=True, exist_ok=replace)
+	datadir.mkdir(parents=True, exist_ok=True)
 	for key, df in mapping.items():
-		with open(datadir / f'{key}.pickle', 'wb') as f:
+		mode = 'wb' if replace else 'xb'
+		with open(datadir / f'{key}.pickle', mode) as f:
 			pickle.dump(df, f)
 
 
@@ -392,15 +393,11 @@ if __name__ == '__main__':
 	try:
 		with sqlite3.connect(f'file:{args.db}?mode=ro', uri=True) as con:
 			df = load_patients_sql(con)
-			als_data = load_als_data_sql(df, con)
-			resp_data = load_resp_data_sql(df, con)
-			nutr_data = load_nutr_data_sql(df, con)
-			
 			save_snapshot(args.datadir, {
-				 'patients': df,
-				 'als_data': als_data,
-				'resp_data': resp_data,
-				'nutr_data': nutr_data,
+				'patients': df,
+				'als_data': load_als_data_sql(df, con),
+				'resp_data': load_resp_data_sql(df, con),
+				'nutr_data': load_nutr_data_sql(df, con),
 			}, replace=args.replace)
 
 	except Exception as e:
