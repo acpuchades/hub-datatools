@@ -9,6 +9,13 @@ def load_data(datadir, name):
 		return pickle.load(f)
 
 
+def try_load_data(datadir, name):
+	try:
+		return load_data(datadir, name)
+	except IOError:
+		return None
+
+
 def save_data(datadir, data, replace=False):
 	datadir = Path(datadir)
 	datadir.mkdir(parents=True, exist_ok=True)
