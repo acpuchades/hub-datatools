@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import warnings
 from argparse  import ArgumentParser
 from importlib import import_module
 from pathlib   import Path
@@ -24,8 +25,9 @@ def add_data_source_arguments(parser, name, dsource):
 
 def make_argument_parser(name=sys.argv[0]):
 	parser = ArgumentParser(prog=name)
-	parser.add_argument('-d', '--datadir', required=True, help='Directory to store snapshot data')
-	parser.add_argument('-r', '--replace', action='store_true', help='Replace snapshot data if already exists')
+	parser.add_argument('-d', '--datadir', required=True, help='directory to store snapshot data')
+	parser.add_argument('-r', '--replace', action='store_true', help='replace snapshot data if already exists')
+	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
 	
 	datagroup = parser.add_argument_group(title='Data sources')
 	for name in data_source_names():
@@ -39,6 +41,9 @@ if __name__ == '__main__':
 	parser = make_argument_parser()
 	args = parser.parse_args()
 	vargs = vars(args)
+	
+	if args.quiet:
+		warnings.filterwarnings('ignore')
 
 	try:
 		nsources = 0
