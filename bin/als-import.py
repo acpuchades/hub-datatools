@@ -41,13 +41,18 @@ if __name__ == '__main__':
 	vargs = vars(args)
 
 	try:
+		nsources = 0
 		for name in data_source_names():
-			if name not in vargs:
+			if vargs.get(name) is None:
 				continue
 			
 			dsource = import_module(f'sources.{name}')
 			data = dsource.load_data(args)
 			save_data(args.datadir, data, replace=args.replace)
+			nsources += 1
+		
+		if nsources == 0:
+			parser.error('no data sources given')
 
 	except Exception as e:
 		parser.error(e)
