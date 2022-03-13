@@ -6,11 +6,7 @@ from argparse  import ArgumentParser
 from importlib import import_module
 from pathlib   import Path
 
-
-def project_names():
-	projectsdir = Path(__file__).parent / 'projects'
-	return [ d.stem for d in projectsdir.iterdir()
-	                if not d.name.startswith('_' ) ]
+from projects  import project_names
 
 
 def make_argument_parser(name=sys.argv[0]):

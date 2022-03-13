@@ -7,12 +7,7 @@ from importlib import import_module
 from pathlib   import Path
 
 from serialize import save_data
-
-
-def data_source_names():
-	sourcesdir = Path(__file__).parent / 'sources'
-	return [ d.stem for d in sourcesdir.iterdir()
-	                if not d.name.startswith('_') ]
+from sources   import data_source_names
 
 
 def add_data_source_arguments(parser, name, dsource):
