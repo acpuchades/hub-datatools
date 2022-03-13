@@ -115,7 +115,7 @@ def transform_strip(data, **kwargs):
 	return data.str.strip()
 
 
-def transform_fix_typos(data, **kwargs):
+def transform_fix_common_typos(data, **kwargs):
 	data = data.str.replace(r'^º', '', regex=True)
 	data = data.str.replace(r'º$', '', regex=True)
 	return data
@@ -148,9 +148,9 @@ def apply_pipeline(df, field, pipeline, inplace=False, **kwargs):
 	return data
 
 
-OPT_BOOL_PIPELINE   = (transform_strip, transform_fix_typos, transform_opt, transform_bool)
-OPT_DATE_PIPELINE   = (transform_strip, transform_fix_typos, transform_opt, transform_fix_date_typos, transform_date)
-OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_typos, transform_opt, transform_number)
+OPT_BOOL_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_bool)
+OPT_DATE_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_fix_date_typos, transform_date)
+OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_common_typos, transform_opt, transform_number)
 
 
 def clean_patient_data(df):
@@ -371,9 +371,12 @@ def clean_nutr_data(df):
 
 def make_argument_parser(name=sys.argv[0]):
 	parser = ArgumentParser(prog=name)
-	parser.add_argument('db', help='Path to SQLite snapshot file')
 	parser.add_argument('-d', '--datadir', required=True, help='Directory to store snapshot data')
 	parser.add_argument('-r', '--replace', action='store_true', help='Replace snapshot data if already exists')
+	
+	datagroup = parser.add_argument_group(title='Data sources')
+	datagroup.add_argument('-u', '--ufmn', metavar='FILE', help='Path to UFMN SQLite file to import')
+	
 	return parser
 
 
@@ -391,17 +394,21 @@ if __name__ == '__main__':
 	args = parser.parse_args()
 
 	try:
-		with sqlite3.connect(f'file:{args.db}?mode=ro', uri=True) as con:
-			df = load_patients_sql(con)
-			save_snapshot(args.datadir, {
-				'patients': df,
-				'als_data': load_als_data_sql(df, con),
-				'resp_data': load_resp_data_sql(df, con),
-				'nutr_data': load_nutr_data_sql(df, con),
-			}, replace=args.replace)
+		if args.ufmn is not None:
+			with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
+				df = load_patients_sql(con)
+				save_snapshot(args.datadir, {
+					'patients': df,
+					'als_data': load_als_data_sql(df, con),
+					'resp_data': load_resp_data_sql(df, con),
+					'nutr_data': load_nutr_data_sql(df, con),
+				}, replace=args.replace)
+
+		else:
+			parser.error('No data sources given')
 
 	except Exception as e:
 		if DEBUG:
 			raise
 		else:
-			print_message(e)
+			parser.error(e)

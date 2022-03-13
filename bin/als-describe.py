@@ -15,7 +15,7 @@ def project_choices():
 
 def make_argument_parser(name=sys.argv[0]):
 	parser = ArgumentParser(prog=name)
-	parser.add_argument('datadir', help='Directory containing snapshot data')
+	parser.add_argument('-d', '--datadir', required=True, help='Directory containing snapshot data')
 	parser.add_argument('-p', '--project', choices=project_choices(), help='Prepare data for selected project')
 	return parser
 
@@ -32,4 +32,4 @@ if __name__ == '__main__':
 		if DEBUG:
 			raise
 		else:
-			print_message(e)
+			parser.error(e)
