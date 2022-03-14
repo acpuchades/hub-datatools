@@ -1,5 +1,16 @@
+from argparse import Namespace
 from pathlib  import Path
-from typing   import List
+from typing   import Any, Dict, List, Protocol
+
+from pandas import DataFrame
+
+
+class DataSource(Protocol):
+	__dict__: Dict[str, Any]
+
+	@staticmethod
+	def load_data(args: Namespace) -> Dict[str, DataFrame]:
+		pass
 
 
 def data_source_names() -> List[str]:

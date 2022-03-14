@@ -1,5 +1,12 @@
 from pathlib import Path
-from typing  import List
+from typing  import List, Protocol
+
+
+class Project(Protocol):
+
+	@staticmethod
+	def export_data(datadir: str, output: Path) -> None:
+		pass
 
 
 def project_names() -> List[str]:
