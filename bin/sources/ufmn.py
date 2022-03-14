@@ -1,11 +1,11 @@
-from transform import *
-
 import sqlite3
 from pandas  import DataFrame
-from sqlite3 import Connection
+from sqlite3 import self, Connection
 
 from argparse import Namespace
-from typing   import Callable,Dict, Protocol
+from typing   import Dict
+
+from transform import *
 
 
 CMDLINE_SHORT  = '-u'
@@ -62,14 +62,17 @@ COGNITIVE_DX = {
 	'Otros': 'Other',
 }
 
+GENE_NORMAL_VALUE = 'Normal'
+GENE_ALTERED_VALUE = 'Alterado'
+
 
 def load_patients_sql(con: Connection) -> DataFrame:
 	df = pd.read_sql_query(f'SELECT * FROM {PATIENT_DATA_TABLE}', con)
 	clean_patient_data(df)
-	
+
 	clinical_data = pd.read_sql_query(f'SELECT * FROM {CLINICAL_DATA_TABLE}', con)
 	clean_clinical_data(clinical_data)
-	
+
 	df = df.merge(clinical_data, on='pid')
 	return df
 
@@ -100,10 +103,10 @@ def clean_patient_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'exitus', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_exitus', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_nacimiento', OPT_DATE_PIPELINE, inplace=True)
-	
+
 	df['situacion_laboral_actual'] = df.situacion_laboral_actual.replace(WORKING_STATUS).astype('category')
 	df['situacion_activa'] = df.situacion_laboral_actual.isin(ACTIVE_WORKING_STATUS)
-	
+
 	df.rename(columns={
 		'situacion_laboral_actual': 'situacion_laboral',
 	}, inplace=True)
@@ -111,27 +114,27 @@ def clean_patient_data(df: DataFrame) -> None:
 
 def add_patient_genetic_data(df: DataFrame) -> None:
 	OTHER_GENES_COLUMN = 'estudio_genetico_otro'
-	
+
 	df['c9_status'] = df['resultado_estudio_c9'].replace({
-		'Normal': 'Normal',
-		'Alterado': 'Mutado',
+		'Normal': GENE_NORMAL_VALUE,
+		'Alterado': GENE_ALTERED_VALUE,
 		'NS/NC': None,
 	}).astype('category')
 
 	df['sod1_status'] = df['resultado_estudio_sod1'].replace({
-		'Normal': 'Normal',
-		'Alterado': 'Mutado',
+		'Normal': GENE_NORMAL_VALUE,
+		'Alterado': GENE_ALTERED_VALUE,
 		'NS/NC': None,
 	}).astype('category')
-	
+
 	df['atxn2_status'] = None
-	df.loc[df[OTHER_GENES_COLUMN].str.contains('ATXN2[^@]+NORMAL', case=False), 'atxn2_status'] = 'Normal'
-	df.loc[df[OTHER_GENES_COLUMN].str.contains('ATXN2[^@]+INTERMEDIO', case=False), 'atxn2_status'] = 'Mutado'
+	df.loc[df[OTHER_GENES_COLUMN].str.contains('ATXN2[^@]+NORMAL', case=False), 'atxn2_status'] = GENE_NORMAL_VALUE
+	df.loc[df[OTHER_GENES_COLUMN].str.contains('ATXN2[^@]+INTERMEDIO', case=False), 'atxn2_status'] = GENE_ALTERED_VALUE
 	df['atxn2_status'] = df['atxn2_status'].astype('category')
-	
+
 	df['ar_status'] = None
-	df.loc[df[OTHER_GENES_COLUMN].str.contains('KENNEDY[^@]+NORMAL', case=False), 'ar_status'] = 'Normal'
-	df.loc[df[OTHER_GENES_COLUMN].str.contains('KENNEDY[^@]+POSITIVO', case=False), 'ar_status'] = 'Mutado'
+	df.loc[df[OTHER_GENES_COLUMN].str.contains('KENNEDY[^@]+NORMAL', case=False), 'ar_status'] = GENE_NORMAL_VALUE
+	df.loc[df[OTHER_GENES_COLUMN].str.contains('KENNEDY[^@]+POSITIVO', case=False), 'ar_status'] = GENE_ALTERED_VALUE
 	df['ar_status'] = df['ar_status'].astype('category')
 
 
@@ -139,23 +142,23 @@ def clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_visita_datos_clinicos', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_inicio_clinica', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_diagnostico_ELA', OPT_DATE_PIPELINE, inplace=True)
-	
+
 	df['fenotipo_al_diagnostico'] = df.fenotipo_al_diagnostico.replace(ALS_PHENOTYPES).astype('category')
 	df['fenotipo_al_exitus'] = df.fenotipo_al_exitus.replace(ALS_PHENOTYPES).astype('category')
 	apply_transform_pipeline(df, 'deterioro_cognitivo', OPT_BOOL_PIPELINE, inplace=True)
 	df['estudio_cognitivo'] = df['estudio_cognitivo'].replace(COGNITIVE_DX).astype('category')
-	
+
 	add_patient_genetic_data(df)
-	
+
 	apply_transform_pipeline(df, 'historia_familiar', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'historia_familiar_motoneurona', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'historia_familiar_alzheimer', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'historia_familiar_parkinson', OPT_BOOL_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'fumador', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'riluzol', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_inicio_riluzol', OPT_DATE_PIPELINE, inplace=True)
-	
+
 	df.rename(columns={
 		'fecha_visita_datos_clinicos': 'fecha_primera_visita',
 		'fecha_inicio_clinica': 'inicio_clinica',
@@ -185,7 +188,7 @@ def clean_als_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'total_bulbar', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'mitos', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'kings', OPT_NUMBER_PIPELINE, inplace=True)
-	
+
 	df.rename(columns={
 		'total': 'alsfrs',
 		'total_bulbar': 'alsfrs_resp',
@@ -196,28 +199,28 @@ def clean_resp_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_visita_fun_res', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'patologia_respiratoria_previa', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'pns', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
-	
+
 	df['pcf_below_threshold'] = df.pcf == '<60'
 	apply_transform_pipeline(df, 'pcf', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
-	
+
 	apply_transform_pipeline(df, 'fvc_sentado', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fvc_estirado', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'pem', OPT_NUMBER_PIPELINE, inplace=True)
-	
+
 	df['pim_below_threshold'] = df.pim == '<60'
 	apply_transform_pipeline(df, 'pim', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
-	
+
 	apply_transform_pipeline(df, 'ph_sangre_arterial', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'pao2', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
 	apply_transform_pipeline(df, 'paco2', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
 	apply_transform_pipeline(df, 'hco3', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
-	
+
 	df['sao2_media_below_threshold'] = df.sao2_media == '<90'
 	apply_transform_pipeline(df, 'sao2_media', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
-	
+
 	apply_transform_pipeline(df, 'ct90', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'odi3', OPT_NUMBER_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'polisomnografia', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_realizacion_polisomnografia', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'ct90_polisomnografia', OPT_NUMBER_PIPELINE, inplace=True)
@@ -227,34 +230,34 @@ def clean_resp_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'sas_apneas_no_claramanete_obstructivas', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sas_apneas_centrales', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sas_apneas_mixtas', OPT_BOOL_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'sintomas_intolerancia_al_decubito', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sintomas_disnea_de_esfuerzo', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sintomas_sintomas_de_hipoventilacion_nocturna', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sintomas_tos_ineficaz', OPT_BOOL_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'cpap', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_cpap', OPT_DATE_PIPELINE, exact=False, inplace=True)
 	apply_transform_pipeline(df, 'portador_vmni', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_colocacion_vmni', OPT_DATE_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'complicacion_vmni', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_complicacion_vmni', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_complicacion_vmni_ulcera_nasal_por_presion', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_complicacion_vmni_aerofagia', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_complicacion_vmni_sequedad_orofaringea', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_complicacion_vmni_otros', OPT_BOOL_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'retirada_vmni', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_retirada_vmni', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_retirada_vmi_intolerancia', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_retirada_vmi_no_cumplimiento', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_retirada_vmi_rechazo_del_paciente', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'motivo_retirada_vmi_otros', OPT_BOOL_PIPELINE, inplace=True)
-	
+
 	apply_transform_pipeline(df, 'fvc_sentado_absoluto', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fvc_estirado_absoluto', OPT_NUMBER_PIPELINE, inplace=True)
-	
+
 	df.rename(columns={
 		'fecha_visita_fun_res': 'fecha_visita',
 		'sas_no_claramanete_obstructivas': 'sas_no_claramente_obstructivas',
@@ -272,7 +275,7 @@ def clean_nutr_data(df: DataFrame) -> None:
 	df.loc[df.id == '8c5b0f46-df7a-11e9-9c30-274ab37b3217', 'fecha_indicacion_peg'] = '20-07-2018' # was '20-07-3018'
 	df.loc[df.id == 'eb700688-3dfe-11eb-9383-d3a3b2195eff', 'fecha_complicacion_peg'] = '22-11-2020' # was '22-11-202'
 	df.replace('29-02-2015', '28-02-2015', regex=False, inplace=True) # 2015 was not a leap year
-	
+
 	apply_transform_pipeline(df, 'fecha_visita_datos_antro', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'peso', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_peso', OPT_DATE_PIPELINE, inplace=True)
