@@ -10,7 +10,7 @@ from serialize import save_data
 from sources   import data_source_names
 
 
-def add_data_source_arguments(parser, name, dsource):
+def add_data_source_arguments(parser: ArgumentParser, name: str, dsource: Module) -> None:
 	args = [f'--{name}']
 	if 'CMDLINE_SHORT' in dsource.__dict__:
 		args.insert(0, dsource.CMDLINE_SHORT)
@@ -18,7 +18,7 @@ def add_data_source_arguments(parser, name, dsource):
 	parser.add_argument(*args, **kwargs)
 
 
-def make_argument_parser(name=sys.argv[0]):
+def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory to store snapshot data')
 	parser.add_argument('-r', '--replace', action='store_true', help='replace snapshot data if already exists')

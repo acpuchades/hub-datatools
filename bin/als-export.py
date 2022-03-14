@@ -9,7 +9,7 @@ from pathlib   import Path
 from projects import project_names
 
 
-def make_argument_parser(name=sys.argv[0]):
+def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory containing snapshot data')
 	parser.add_argument('-p', '--project', choices=project_names(), help='prepare data for selected project')
@@ -17,10 +17,6 @@ def make_argument_parser(name=sys.argv[0]):
 	parser.add_argument('-o', '--output', help='file or directory to output project results')
 	return parser
 
-
-def load_output_format_class(name):
-	module = import_module(f'formats.{name}')
-	return module.__dict__[f'{name.upper()}Format']
 
 if __name__ == '__main__':
 	try:
@@ -30,9 +26,8 @@ if __name__ == '__main__':
 		if args.quiet:
 			warnings.filterwarnings('ignore')
 		
-		format = load_output_format_class(args.format)
 		project = import_module(f'projects.{args.project}')
-		project.export_data(args.datadir, output=args.output)
+		project.export_data(datadir=args.datadir, output=args.output)
 
 	except Exception as e:
 		parser.error(e)

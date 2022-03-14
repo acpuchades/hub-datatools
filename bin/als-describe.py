@@ -9,7 +9,7 @@ from pathlib   import Path
 from projects  import project_names
 
 
-def make_argument_parser(name=sys.argv[0]):
+def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory containing snapshot data')
 	parser.add_argument('-p', '--project', choices=project_names(), help='prepare data for selected project')
@@ -26,7 +26,7 @@ if __name__ == '__main__':
 			warnings.filterwarnings('ignore')
 		
 		project = import_module(f'projects.{args.project}')
-		project.describe(args.datadir)
+		project.describe(datadir=args.datadir)
 
 	except Exception as e:
 		parser.error(e)
