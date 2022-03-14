@@ -1,4 +1,4 @@
-from typing import Iterable, Optional, Protocol
+from typing import Dict, Iterable, Optional, Protocol
 
 import pandas as pd
 
@@ -20,6 +20,12 @@ def transform_opt(data: pd.Series, na_values: Iterable[str] = NA_VALUES,
 
 	data.replace(na_values, None, inplace=True)
 	return data
+
+
+def transform_enum(data: pd.Series, values: Dict[str, str] = None, **kwargs) -> pd.Series:
+	if values:
+		data = data.replace(values)
+	return data.astype('category')
 
 
 def transform_bool(data: pd.Series, true_values: Iterable[str] = TRUE_VALUES,
@@ -62,16 +68,17 @@ def transform_number(data: pd.Series, errors: str = 'raise', **kwargs) -> pd.Ser
 
 
 def apply_transform_pipeline(df: pd.DataFrame, field: str, pipeline: Iterable[TransformFn],
-                             inplace: bool = False, **kwargs) -> pd.DataFrame:
+                             inplace: bool | str = False, **kwargs) -> pd.DataFrame:
 	data = df[field]
 	for fn in pipeline:
 		data = fn(data, **kwargs, inplace=inplace)
 
 	if inplace:
-		df[field] = data
-	return data
+		df[inplace if isinstance(inplace, str) else field] = data
 
+	return data
 
 OPT_BOOL_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_bool)
 OPT_DATE_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_fix_date_typos, transform_date)
+OPT_ENUM_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_enum)
 OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_common_typos, transform_opt, transform_number)
