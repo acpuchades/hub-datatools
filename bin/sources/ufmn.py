@@ -315,8 +315,8 @@ def load_data(args: Namespace) -> Dict[str, DataFrame]:
 	with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
 		df = load_patients_sql(con)
 		return {
-			'ufmn_patients': df,
-			'ufmn_als_data': load_als_data_sql(df, con),
-			'ufmn_resp_data': load_resp_data_sql(df, con),
-			'ufmn_nutr_data': load_nutr_data_sql(df, con),
+			'ufmn/patients': df,
+			'ufmn/als_data': load_als_data_sql(df, con),
+			'ufmn/resp_data': load_resp_data_sql(df, con),
+			'ufmn/nutr_data': load_nutr_data_sql(df, con),
 		}
