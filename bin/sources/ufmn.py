@@ -219,9 +219,9 @@ def clean_resp_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'sintomas_tos_ineficaz', OPT_BOOL_PIPELINE, inplace=True)
 
 	apply_transform_pipeline(df, 'cpap', OPT_BOOL_PIPELINE, inplace=True)
-	apply_transform_pipeline(df, 'fecha_cpap', OPT_DATE_PIPELINE, exact=False, inplace=True)
+	apply_transform_pipeline(df, 'fecha_cpap', OPT_DATE_PIPELINE, exact=False, inplace='inicio_cpap')
 	apply_transform_pipeline(df, 'portador_vmni', OPT_BOOL_PIPELINE, inplace=True)
-	apply_transform_pipeline(df, 'fecha_colocacion_vmni', OPT_DATE_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'fecha_colocacion_vmni', OPT_DATE_PIPELINE, inplace='inicio_vmni')
 
 	apply_transform_pipeline(df, 'complicacion_vmni', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_complicacion_vmni', OPT_DATE_PIPELINE, inplace=True)
