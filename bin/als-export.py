@@ -25,9 +25,10 @@ if __name__ == '__main__':
 
 		if args.quiet:
 			warnings.filterwarnings('ignore')
-		
+
 		project = import_module(f'projects.{args.project}')
-		project.export_data(datadir=args.datadir, output=args.output)
+		output_data = project.export_data(datadir=args.datadir)
+		print(output_data) # TODO: implement formatted file output
 
 	except Exception as e:
 		parser.error(e)
