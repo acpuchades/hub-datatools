@@ -41,9 +41,12 @@ FFILL_COLUMNS = [
 
 
 def add_data_source_arguments(parser: ArgumentParser) -> None:
-	parser.add_argument('--hub-urg', metavar='EXCEL_FILE', help='Excel file containing HUB ER data')
-	parser.add_argument('--hub-urg-excel-tab', default=0, metavar='NAME', help='Excel tab containing HUB ER data')
-	parser.add_argument('--hub-urg-column-row', type=int, default=1, metavar='ROW', help='Excel row number containing column names')
+	parser.add_argument('--hub-urg', metavar='EXCEL_FILE',
+	                    help='Excel file containing HUB ER data')
+	parser.add_argument('--hub-urg-excel-tab', default=0, metavar='NAME',
+	                    help='Excel tab containing HUB ER data')
+	parser.add_argument('--hub-urg-column-row', type=int, default=1, metavar='ROW',
+	                    help='Excel row number containing column names')
 
 
 def load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -58,7 +61,8 @@ def load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_data(args: Namespace) -> pd.DataFrame:
-	df = pd.read_excel(args.hub_urg, sheet_name=args.hub_urg_excel_tab, header=args.hub_urg_column_row - 1)
+	df = pd.read_excel(args.hub_urg, sheet_name=args.hub_urg_excel_tab,
+	                   header=args.hub_urg_column_row - 1)
 	df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
 
 	return {
