@@ -53,11 +53,14 @@ def load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df = df[EPISODE_COLUMNS].drop_duplicates().set_index(EPISODE_ID_COLUMN)
 	df[EPISODE_BEGIN_COLUMN] = pd.to_datetime(df[EPISODE_BEGIN_COLUMN])
 	df[EPISODE_END_COLUMN] = pd.to_datetime(df[EPISODE_END_COLUMN])
+	df.dropna(axis='index', inplace=True)
 	return df
 
 
 def load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
-	return df[DIAGNOSES_COLUMNS].set_index([EPISODE_ID_COLUMN, DIAGNOSIS_CODE_COLUMN])
+	df = df[DIAGNOSES_COLUMNS].set_index([EPISODE_ID_COLUMN, DIAGNOSIS_CODE_COLUMN])
+	df.dropna(axis='index', inplace=True)
+	return df
 
 
 def load_data(args: Namespace) -> pd.DataFrame:
