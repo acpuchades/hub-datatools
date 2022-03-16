@@ -72,34 +72,35 @@ GENE_STATUS_ALTERED_VALUE = 'Alterado'
 
 def load_patients_sql(con: Connection) -> DataFrame:
 	df = pd.read_sql_query(f'SELECT * FROM {PATIENT_DATA_TABLE}', con)
+	df.set_index('pid', inplace=True)
 	clean_patient_data(df)
 
 	clinical_data = pd.read_sql_query(f'SELECT * FROM {CLINICAL_DATA_TABLE}', con)
+	clinical_data.set_index('pid', inplace=True)
 	clean_clinical_data(clinical_data)
 
-	df = df.merge(clinical_data, on='pid')
-	return df
+	return df.merge(clinical_data, left_index=True, right_index=True)
 
 
 def load_als_data_sql(df: DataFrame, con: Connection) -> DataFrame:
 	als_data = pd.read_sql_query(f'SELECT * FROM {ALS_DATA_TABLE}', con)
-	df = df.merge(als_data, on='pid')
-	clean_als_data(df)
-	return df
+	als_data.set_index('id', inplace=True)
+	clean_als_data(als_data)
+	return als_data
 
 
-def load_resp_data_sql(df: DataFrame, con: Connection) -> DataFrame:
+def load_resp_data_sql(con: Connection) -> DataFrame:
 	resp_data = pd.read_sql_query(f'SELECT * FROM {RESP_DATA_TABLE}', con)
-	df = df.merge(resp_data, on='pid')
-	clean_resp_data(df)
-	return df
+	resp_data.set_index('id', inplace=True)
+	clean_resp_data(resp_data)
+	return resp_data
 
 
-def load_nutr_data_sql(df: DataFrame, con: Connection) -> DataFrame:
+def load_nutr_data_sql(con: Connection) -> DataFrame:
 	nutr_data = pd.read_sql_query(f'SELECT * FROM {NUTR_DATA_TABLE}', con)
-	df = df.merge(nutr_data, on='pid')
-	clean_nutr_data(df)
-	return df
+	nutr_data.set_index('id', inplace=True)
+	clean_nutr_data(nutr_data)
+	return nutr_data
 
 
 def clean_patient_data(df: DataFrame) -> None:
