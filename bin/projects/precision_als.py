@@ -32,16 +32,16 @@ def describe(datadir: Path) -> None:
 	print(f' > Total number of cases: {len(cases)}')
 	print(f' > Current number of living cases: {len(cases[~cases.exitus])}')
 	print(f' > Number of cases with genetic testing available: {len(gene_cases)}')
-	print(f'\t* C9orf72 -> {len(cases[cases.c9_status.notna()])} (positive: {len(cases[cases.c9_status == "Alterado"])})')
-	print(f'\t* SOD1 -> {len(cases[cases.sod1_status.notna()])} (positive: {len(cases[cases.sod1_status == "Alterado"])})')
-	print(f'\t* ATXN2 -> {len(cases[cases.atxn2_status.notna()])} (positive: {len(cases[cases.atxn2_status == "Alterado"])})')
+	print(f'\t * C9orf72 -> {len(cases[cases.c9_status.notna()])} (altered: {len(cases[cases.c9_status == "Alterado"])})')
+	print(f'\t * SOD1 -> {len(cases[cases.sod1_status.notna()])} (altered: {len(cases[cases.sod1_status == "Alterado"])})')
+	print(f'\t * ATXN2 -> {len(cases[cases.atxn2_status.notna()])} (altered: {len(cases[cases.atxn2_status == "Alterado"])})')
 	print()
 
 	print(' Biogen Extant Task 2')
 	print(' --------------------')
 	print(' > Number of cases with follow-up data available:')
-	print(f'\t* 1+ follow-up -> {len(als_data.value_counts("pid"))}')
-	print(f'\t* 2+ follow-up -> {sum(als_data.value_counts("pid") >= 2)}')
+	print(f'\t * 1+ follow-up -> {len(als_data.value_counts("pid"))}')
+	print(f'\t * 2+ follow-up -> {sum(als_data.value_counts("pid") >= 2)}')
 	print()
 
 	print(' Biogen Extant Task 3')
@@ -50,6 +50,15 @@ def describe(datadir: Path) -> None:
 	print(f' > Time to CPAP: {len(resp_data[resp_data.cpap.fillna(False)].value_counts("pid"))}')
 	print(f' > Time to VMNI: {len(resp_data[resp_data.portador_vmni.fillna(False)].value_counts("pid"))}')
 	print(f' > Time to PEG: {len(nutr_data[nutr_data.indicacion_peg.fillna(False)].value_counts("pid"))}')
+
+	print(f' > Time to MiToS: {len(als_data[als_data.mitos.notna()].value_counts("pid"))}')
+	for n in range(1, 5):
+		print(f'\t * Stage {n} -> {len(als_data[als_data.mitos == n].value_counts("pid"))}')
+
+	print(f' > Time to King\'s: {len(als_data[als_data.kings.notna()].value_counts("pid"))}')
+	for n in range(1, 5):
+		print(f'\t * Stage {n} -> {len(als_data[als_data.kings == n].value_counts("pid"))}')
+
 	print(f' > Time to death: {len(cases[~cases.fecha_exitus.isna()])}')
 	print()
 
