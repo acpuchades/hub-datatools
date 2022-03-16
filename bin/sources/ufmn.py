@@ -103,7 +103,7 @@ def clean_patient_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_nacimiento', OPT_DATE_PIPELINE, inplace=True)
 
 	apply_transform_pipeline(df, 'situacion_laboral_actual', OPT_ENUM_PIPELINE, values=WORKING_STATUS_CATEGORIES, inplace='situacion_laboral_inicial')
-	df['situacion_activa_inicial'] = df.situacion_laboral_dx.isin(ACTIVE_WORKING_STATUS_VALUES)
+	df['situacion_activa_inicial'] = df.situacion_laboral_inicial.isin(ACTIVE_WORKING_STATUS_VALUES)
 
 
 def add_patient_genetic_data(df: DataFrame) -> None:
@@ -161,8 +161,8 @@ def clean_als_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'disnea', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'ortopnea', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'insuficiencia_respiratoria', OPT_NUMBER_PIPELINE, inplace=True)
-	apply_transform_pipeline(df, 'total', OPT_NUMBER_PIPELINE, inplace='alsfrs')
-	apply_transform_pipeline(df, 'total_bulbar', OPT_NUMBER_PIPELINE, inplace='alsfrs_resp')
+	apply_transform_pipeline(df, 'total', OPT_NUMBER_PIPELINE, inplace='alsfrs_r')
+	apply_transform_pipeline(df, 'total_bulbar', OPT_NUMBER_PIPELINE, inplace='alsfrs_bulbar')
 	apply_transform_pipeline(df, 'mitos', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'kings', OPT_NUMBER_PIPELINE, inplace=True)
 
@@ -283,8 +283,8 @@ def add_data_source_arguments(parser: ArgumentParser) -> None:
 def load_data(args: Namespace) -> Dict[str, DataFrame]:
 	with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
 		return {
-			'ufmn/patients': load_patients_sql(con),
-			'ufmn/als_data': load_als_data_sql(con),
+			 'ufmn/patients': load_patients_sql(con),
+			 'ufmn/als_data': load_als_data_sql(con),
 			'ufmn/resp_data': load_resp_data_sql(con),
 			'ufmn/nutr_data': load_nutr_data_sql(con),
 		}
