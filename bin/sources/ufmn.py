@@ -137,7 +137,7 @@ def add_patient_genetic_data(df: DataFrame) -> None:
 def clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_visita_datos_clinicos', OPT_DATE_PIPELINE, inplace='fecha_primera_visita')
 	apply_transform_pipeline(df, 'fecha_inicio_clinica', OPT_DATE_PIPELINE, inplace='inicio_clinica')
-	apply_transform_pipeline(df, 'fecha_diagnostico_ELA', OPT_DATE_PIPELINE, inplace='fecha_fx')
+	apply_transform_pipeline(df, 'fecha_diagnostico_ELA', OPT_DATE_PIPELINE, inplace='fecha_dx')
 
 	apply_transform_pipeline(df, 'fenotipo_al_diagnostico', OPT_ENUM_PIPELINE, values=ALS_PHENOTYPE_CATEGORIES, inplace='fenotipo_dx')
 	apply_transform_pipeline(df, 'fenotipo_al_exitus', OPT_ENUM_PIPELINE, values=ALS_PHENOTYPE_CATEGORIES, inplace='fenotipo_exitus')
@@ -179,6 +179,11 @@ def clean_als_data(df: DataFrame) -> None:
 
 
 def clean_resp_data(df: DataFrame) -> None:
+	df.loc['c2049bdf-4a91-43e0-b6c4-f770881b7499', 'fecha_visita_fun_res'] = None # was '99-99-9999'
+	df.loc['31f94d2a-fb08-11e9-b780-81f732616a71', 'odi3'] = None # was '17/7'
+	df.loc['a3608f72-82eb-11e9-aed7-57f320d0dba4', 'fecha_realizacion_polisomnografia'] = None # was '14'
+	df.loc['f508e4b8-db93-11e9-b372-090a91bd3693', 'fecha_realizacion_polisomnografia'] = None # was '14'
+
 	apply_transform_pipeline(df, 'fecha_visita_fun_res', OPT_DATE_PIPELINE, inplace='fecha_visita')
 	apply_transform_pipeline(df, 'patologia_respiratoria_previa', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'pns', OPT_NUMBER_PIPELINE, errors='coerce', inplace=True)
@@ -243,10 +248,11 @@ def clean_resp_data(df: DataFrame) -> None:
 
 
 def clean_nutr_data(df: DataFrame) -> None:
-	df.loc[df.id == '67e615f4-5f01-11eb-a21b-8316bff80df0', 'fecha_visita_datos_antro'] = '03-12-2021' # was '03-12-20219'
-	df.loc[df.id == 'f9054526-1dcc-11eb-bb4a-9745fc970131', 'fecha_indicacion_peg'] = '23-10-2020' # was '23-10-20020'
-	df.loc[df.id == '8c5b0f46-df7a-11e9-9c30-274ab37b3217', 'fecha_indicacion_peg'] = '20-07-2018' # was '20-07-3018'
-	df.loc[df.id == 'eb700688-3dfe-11eb-9383-d3a3b2195eff', 'fecha_complicacion_peg'] = '22-11-2020' # was '22-11-202'
+	df.loc['40c68842-eeb1-4cd2-a0d8-c5cbc839730c', 'fecha_visita_datos_antro'] = None # was '99-99-9999'
+	df.loc['67e615f4-5f01-11eb-a21b-8316bff80df0', 'fecha_visita_datos_antro'] = '03-12-2021' # was '03-12-20219'
+	df.loc['f9054526-1dcc-11eb-bb4a-9745fc970131', 'fecha_indicacion_peg'] = '23-10-2020' # was '23-10-20020'
+	df.loc['8c5b0f46-df7a-11e9-9c30-274ab37b3217', 'fecha_indicacion_peg'] = '20-07-2018' # was '20-07-3018'
+	df.loc['eb700688-3dfe-11eb-9383-d3a3b2195eff', 'fecha_complicacion_peg'] = '22-11-2020' # was '22-11-202'
 	df.replace('29-02-2015', '28-02-2015', regex=False, inplace=True) # 2015 was not a leap year
 
 	apply_transform_pipeline(df, 'fecha_visita_datos_antro', OPT_DATE_PIPELINE, inplace='fecha_visita')
