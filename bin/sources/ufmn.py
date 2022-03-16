@@ -2,17 +2,10 @@ import sqlite3
 from pandas  import DataFrame
 from sqlite3 import Connection
 
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from typing   import Dict
 
 from transform import *
-
-
-CMDLINE_SHORT  = '-u'
-CMDLINE_KWARGS = {
-	'help': 'SQLite file to load data from',
-	'metavar': 'DATABASE_FILE',
-}
 
 
 PATIENT_DATA_TABLE  = 'pacientes'
@@ -281,6 +274,10 @@ def clean_nutr_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'peso_colocacion_peg', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'suplementacion_nutricional_entera', OPT_BOOL_PIPELINE, inplace='supl_nutr_ent')
 	apply_transform_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace='inicio_supl_nutr_ent')
+
+
+def add_data_source_arguments(parser: ArgumentParser) -> None:
+	parser.add_argument('-u', '--ufmn', metavar='DATABASE_FILE', help='SQLite file to load data from')
 
 
 def load_data(args: Namespace) -> Dict[str, DataFrame]:
