@@ -1,12 +1,15 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from pathlib  import Path
-from typing   import Any, Dict, List, Protocol
+from typing   import Dict, List, Protocol
 
 from pandas import DataFrame
 
 
 class DataSource(Protocol):
-	__dict__: Dict[str, Any]
+
+	@staticmethod
+	def add_data_source_arguments(parser: ArgumentParser) -> None:
+		pass
 
 	@staticmethod
 	def load_data(args: Namespace) -> Dict[str, DataFrame]:

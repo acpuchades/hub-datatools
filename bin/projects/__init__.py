@@ -1,11 +1,17 @@
 from pathlib import Path
-from typing  import List, Protocol
+from typing  import Dict, List, Protocol
+
+from pandas import DataFrame
 
 
 class Project(Protocol):
 
 	@staticmethod
-	def export_data(datadir: str, output: Path) -> None:
+	def describe(datadir: str) -> None:
+		pass
+
+	@staticmethod
+	def export_data(datadir: str) -> DataFrame | Dict[str, DataFrame]:
 		pass
 
 
