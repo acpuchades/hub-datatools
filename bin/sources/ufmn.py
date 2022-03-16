@@ -82,7 +82,7 @@ def load_patients_sql(con: Connection) -> DataFrame:
 	return df.merge(clinical_data, left_index=True, right_index=True)
 
 
-def load_als_data_sql(df: DataFrame, con: Connection) -> DataFrame:
+def load_als_data_sql(con: Connection) -> DataFrame:
 	als_data = pd.read_sql_query(f'SELECT * FROM {ALS_DATA_TABLE}', con)
 	als_data.set_index('id', inplace=True)
 	clean_als_data(als_data)
@@ -109,12 +109,8 @@ def clean_patient_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_exitus', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_nacimiento', OPT_DATE_PIPELINE, inplace=True)
 
-	df['situacion_laboral_actual'] = df.situacion_laboral_actual.replace(WORKING_STATUS_CATEGORIES).astype('category')
-	df['situacion_activa'] = df.situacion_laboral_actual.isin(ACTIVE_WORKING_STATUS_VALUES)
-
-	df.rename(columns={
-		'situacion_laboral_actual': 'situacion_laboral',
-	}, inplace=True)
+	apply_transform_pipeline(df, 'situacion_laboral_actual', OPT_ENUM_PIPELINE, values=WORKING_STATUS_CATEGORIES, inplace='situacion_laboral_inicial')
+	df['situacion_activa_inicial'] = df.situacion_laboral_dx.isin(ACTIVE_WORKING_STATUS_VALUES)
 
 
 def add_patient_genetic_data(df: DataFrame) -> None:
@@ -289,10 +285,9 @@ def clean_nutr_data(df: DataFrame) -> None:
 
 def load_data(args: Namespace) -> Dict[str, DataFrame]:
 	with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
-		df = load_patients_sql(con)
 		return {
-			'ufmn/patients': df,
-			'ufmn/als_data': load_als_data_sql(df, con),
-			'ufmn/resp_data': load_resp_data_sql(df, con),
-			'ufmn/nutr_data': load_nutr_data_sql(df, con),
+			'ufmn/patients': load_patients_sql(con),
+			'ufmn/als_data': load_als_data_sql(con),
+			'ufmn/resp_data': load_resp_data_sql(con),
+			'ufmn/nutr_data': load_nutr_data_sql(con),
 		}
