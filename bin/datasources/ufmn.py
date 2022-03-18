@@ -167,7 +167,7 @@ def _clean_als_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'subir_escaleras', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'disnea', OPT_NUMBER_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'ortopnea', OPT_NUMBER_PIPELINE, inplace=True)
-	apply_transform_pipeline(df, 'insuficiencia_respiratoria', OPT_NUMBER_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'insuficiencia_respiratoria', OPT_NUMBER_PIPELINE, inplace='insuf_resp')
 	apply_transform_pipeline(df, 'total', OPT_NUMBER_PIPELINE, inplace='alsfrs_r')
 	apply_transform_pipeline(df, 'total_bulbar', OPT_NUMBER_PIPELINE, inplace='alsfrs_bulbar')
 	apply_transform_pipeline(df, 'mitos', OPT_NUMBER_PIPELINE, inplace=True)
