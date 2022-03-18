@@ -4,7 +4,7 @@ from importlib import import_module
 from pathlib   import Path
 from typing    import Dict, List, Optional
 
-from pandas import DataFrame
+from pandas    import DataFrame
 
 
 class DataSource(ABC):
@@ -26,7 +26,7 @@ _registered_datasources: Dict[str, type[DataSource]] = dict()
 
 
 def datasource(name: str):
-	def datasource_decorator_helper(cls: type[DataSource]):
+	def datasource_decorator_helper(cls):
 		_registered_datasources.setdefault(name, cls)
 		return cls
 

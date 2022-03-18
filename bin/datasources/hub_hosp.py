@@ -18,19 +18,19 @@ DISCHARGE_DEPARTMENT_COLUMN = 'Servei alta desc'
 
 EPISODE_COLUMNS = {
 	PATIENT_ID_COLUMN: 'nhc',
-	EPISODE_ID_COLUMN: 'episode_id',
-	EPISODE_BEGIN_COLUMN: 'episode_begin',
-	EPISODE_END_COLUMN: 'episode_end',
-	DISCHARGE_TYPE_COLUMN: 'discharge_type',
-	DISCHARGE_DESTINATION_COLUMN: 'discharge_dest',
-	DISCHARGE_DEPARTMENT_COLUMN: 'discharge_dept',
+	EPISODE_ID_COLUMN: 'id_episodio',
+	EPISODE_BEGIN_COLUMN: 'inicio_episodio',
+	EPISODE_END_COLUMN: 'fin_episodio',
+	DISCHARGE_TYPE_COLUMN: 'destino_alta',
+	DISCHARGE_DESTINATION_COLUMN: 'centro_destino_alta',
+	DISCHARGE_DEPARTMENT_COLUMN: 'servicio_alta',
 }
 
 DIAGNOSES_COLUMNS = {
-	EPISODE_ID_COLUMN: 'episode_id',
-	DIAGNOSIS_CODE_COLUMN: 'dx_code',
-	DIAGNOSIS_DESCRIPTION_COLUMN: 'dx_desc',
-	DIAGNOSIS_CLASS_COLUMN:'dx_class',
+	EPISODE_ID_COLUMN: 'id_episodio',
+	DIAGNOSIS_CODE_COLUMN: 'codigo_dx',
+	DIAGNOSIS_DESCRIPTION_COLUMN: 'descripcion_dx',
+	DIAGNOSIS_CLASS_COLUMN:'clase_dx',
 }
 
 FFILL_COLUMNS = [
@@ -41,21 +41,23 @@ FFILL_COLUMNS = [
 ]
 
 
-def load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
+def _load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df = df.copy()
 	df.drop_duplicates(subset=EPISODE_COLUMNS.keys(), inplace=True)
 	df[EPISODE_BEGIN_COLUMN] = pd.to_datetime(df[EPISODE_BEGIN_COLUMN])
 	df[EPISODE_END_COLUMN] = pd.to_datetime(df[EPISODE_END_COLUMN])
 	df.rename(columns=EPISODE_COLUMNS, inplace=True)
-	df.set_index('episode_id', inplace=True)
+	df.inicio_episodio = pd.to_datetime(df.inicio_episodio)
+	df.fin_episodio = pd.to_datetime
+	df.set_index('id_episodio', inplace=True)
 	df.dropna(axis='index', inplace=True)
 	return df
 
 
-def load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
+def _load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df = df.copy()[DIAGNOSES_COLUMNS.keys()]
 	df.rename(columns=DIAGNOSES_COLUMNS, inplace=True)
-	df.set_index(['episode_id', 'dx_code'], inplace=True)
+	df.set_index(['id_episodio', 'codigo_dx'], inplace=True)
 	df.dropna(axis='index', inplace=True)
 	return df
 
@@ -76,12 +78,12 @@ class HUBHosp(DataSource):
 	def has_arguments(args: Namespace) -> bool:
 		return args.hub_hosp is not None
 
-	def load_data(args: Namespace) -> pd.DataFrame:
+	def load_data(self, args: Namespace) -> pd.DataFrame:
 		df = pd.read_excel(args.hub_hosp, sheet_name=args.hub_hosp_excel_tab,
 		                   header=args.hub_hosp_column_row - 1)
 		df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
 
 		return {
-		     'hub_hosp/episodes': load_episodes_from_df(df),
-		    'hub_hosp/diagnoses': load_diagnoses_from_df(df),
+		     'hub_hosp/episodes': _load_episodes_from_df(df),
+		    'hub_hosp/diagnoses': _load_diagnoses_from_df(df),
 		}

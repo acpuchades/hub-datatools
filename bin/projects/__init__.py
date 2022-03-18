@@ -3,7 +3,7 @@ from importlib import import_module
 from pathlib   import Path
 from typing    import Dict, List, Optional
 
-from pandas import DataFrame
+from pandas    import DataFrame
 
 
 class Project(ABC):
@@ -21,7 +21,7 @@ _registered_projects: Dict[str, type[Project]] = dict()
 
 
 def project(name: str):
-	def project_decorator_helper(cls: type[Project]):
+	def project_decorator_helper(cls):
 		_registered_projects.setdefault(name, cls)
 		return cls
 
