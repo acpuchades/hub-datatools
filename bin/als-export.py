@@ -2,14 +2,13 @@
 
 import sys
 import warnings
-from argparse  import ArgumentParser, Namespace
-from importlib import import_module
+from argparse  import ArgumentParser
 from pathlib   import Path
 from typing    import Any, Dict, Optional
 
 from pandas import DataFrame
 
-from projects import project_names
+from projects import get_project_class, get_project_names, load_project_modules
 
 
 EXPORT_FORMATS = {
@@ -77,7 +76,7 @@ def export_output_data(data: DataFrame | Dict[str, DataFrame], path: Path, forma
 def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory containing snapshot data')
-	parser.add_argument('-p', '--project', choices=project_names(), help='prepare data for selected project')
+	parser.add_argument('-p', '--project', choices=get_project_names(), help='prepare data for selected project')
 	parser.add_argument('-f', '--format', default='csv', choices=EXPORT_FORMATS.keys(), help='file output format to use')
 	parser.add_argument('-o', '--output', type=Path, help='file or directory to output project results')
 	parser.add_argument('-r', '--replace', action='store_true', help='replace existing file if already exists')
@@ -87,14 +86,18 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 
 if __name__ == '__main__':
 	try:
+		load_project_modules()
+
 		parser = make_argument_parser()
 		args = parser.parse_args()
 
 		if args.quiet:
 			warnings.filterwarnings('ignore')
 
-		project = import_module(f'projects.{args.project}')
-		data = project.export_data(datadir=args.datadir)
+		projectclass = get_project_class(args.project)
+		project = projectclass(args.datadir)
+		data = project.export_data()
+
 		export_output_data(data, path=args.output,
 		                   format=args.format, replace=args.replace)
 
