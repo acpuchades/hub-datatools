@@ -2,12 +2,14 @@
 
 import sys
 import warnings
-from argparse  import ArgumentParser
-from importlib import import_module
-from pathlib   import Path
 
-from serialize import save_data
-from sources   import DataSource, data_source_names
+from argparse    import ArgumentParser
+from importlib   import import_module
+from pathlib     import Path
+from serialize   import load_data
+
+from serialize   import save_data
+from datasources import DataSource, get_datasource_class, get_datasource_names, load_datasource_modules
 
 
 def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
@@ -16,30 +18,32 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser.add_argument('-r', '--replace', action='store_true', help='replace snapshot data if already exists')
 	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
 
-	for name in data_source_names():
+	for name in get_datasource_names():
 		group = parser.add_argument_group(name)
-		dsource: DataSource = import_module(f'sources.{name}')
-		dsource.add_data_source_arguments(group)
+		datasource_class = get_datasource_class(name)
+		datasource_class.add_arguments(group)
 
 	return parser
 
 
 if __name__ == '__main__':
-	parser = make_argument_parser()
-	args = parser.parse_args()
-	vargs = vars(args)
-
-	if args.quiet:
-		warnings.filterwarnings('ignore')
-
 	try:
+		load_datasource_modules()
+
+		parser = make_argument_parser()
+		args = parser.parse_args()
+
+		if args.quiet:
+			warnings.filterwarnings('ignore')
+
 		nsources = 0
-		for name in data_source_names():
-			if vargs.get(name) is None:
+		for name in get_datasource_names():
+			datasource_class = get_datasource_class(name)
+			if not datasource_class.has_arguments(args):
 				continue
 
-			dsource: DataSource = import_module(f'sources.{name}')
-			data = dsource.load_data(args)
+			datasource = datasource_class()
+			data = datasource.load_data(args)
 			save_data(args.datadir, data, replace=args.replace)
 			nsources += 1
 

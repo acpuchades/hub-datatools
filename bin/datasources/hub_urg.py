@@ -1,4 +1,6 @@
-from argparse import ArgumentParser, Namespace
+from argparse    import ArgumentParser, Namespace
+
+from datasources import DataSource, datasource
 
 import pandas as pd
 
@@ -40,15 +42,6 @@ FFILL_COLUMNS = [
 ]
 
 
-def add_data_source_arguments(parser: ArgumentParser) -> None:
-	parser.add_argument('--hub-urg', metavar='EXCEL_FILE',
-	                    help='Excel file containing HUB ER data')
-	parser.add_argument('--hub-urg-excel-tab', default=0, metavar='NAME',
-	                    help='Excel tab containing HUB ER data')
-	parser.add_argument('--hub-urg-column-row', type=int, default=1, metavar='ROW',
-	                    help='Excel row number containing column names')
-
-
 def load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df = df.copy()
 	df.drop_duplicates(subset=EPISODE_COLUMNS.keys(), inplace=True)
@@ -68,12 +61,28 @@ def load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	return df
 
 
-def load_data(args: Namespace) -> pd.DataFrame:
-	df = pd.read_excel(args.hub_urg, sheet_name=args.hub_urg_excel_tab,
-	                   header=args.hub_urg_column_row - 1)
-	df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
+@datasource(name='hub_urg')
+class HUBUrg(DataSource):
 
-	return {
-		 'hub_urg/episodes': load_episodes_from_df(df),
-		'hub_urg/diagnoses': load_diagnoses_from_df(df),
-	}
+	@staticmethod
+	def add_arguments(parser: ArgumentParser) -> None:
+		parser.add_argument('--hub-urg', metavar='EXCEL_FILE',
+		                    help='Excel file containing HUB ER data')
+		parser.add_argument('--hub-urg-excel-tab', default=0, metavar='NAME',
+		                    help='Excel tab containing HUB ER data')
+		parser.add_argument('--hub-urg-column-row', type=int, default=1, metavar='ROW',
+		                    help='Excel row number containing column names')
+
+	@staticmethod
+	def has_arguments(args: Namespace) -> bool:
+		return args.hub_urg is not None
+
+	def load_data(self, args: Namespace) -> pd.DataFrame:
+		df = pd.read_excel(args.hub_urg, sheet_name=args.hub_urg_excel_tab,
+		                   header=args.hub_urg_column_row - 1)
+		df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
+
+		return {
+		     'hub_urg/episodes': load_episodes_from_df(df),
+		    'hub_urg/diagnoses': load_diagnoses_from_df(df),
+		}

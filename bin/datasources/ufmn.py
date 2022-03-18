@@ -1,11 +1,12 @@
 import sqlite3
-from pandas  import DataFrame
-from sqlite3 import Connection
+from pandas      import DataFrame
+from sqlite3     import Connection
 
-from argparse import ArgumentParser, Namespace
-from typing   import Dict
+from argparse    import ArgumentParser, Namespace
+from typing      import Dict
 
-from transform import *
+from datasources import DataSource, datasource
+from transform   import *
 
 
 PATIENT_DATA_TABLE  = 'pacientes'
@@ -276,15 +277,23 @@ def clean_nutr_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace='inicio_supl_nutr_ent')
 
 
-def add_data_source_arguments(parser: ArgumentParser) -> None:
-	parser.add_argument('-u', '--ufmn', metavar='DATABASE_FILE', help='SQLite file to load data from')
+@datasource(name='ufmn')
+class UFMN(DataSource):
 
+	@staticmethod
+	def add_arguments(parser: ArgumentParser) -> None:
+		parser.add_argument('-u', '--ufmn', metavar='DATABASE_FILE',
+		                    help='SQLite file to load data from')
 
-def load_data(args: Namespace) -> Dict[str, DataFrame]:
-	with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
-		return {
-			 'ufmn/patients': load_patients_sql(con),
-			 'ufmn/als_data': load_als_data_sql(con),
-			'ufmn/resp_data': load_resp_data_sql(con),
-			'ufmn/nutr_data': load_nutr_data_sql(con),
-		}
+	@staticmethod
+	def has_arguments(args: Namespace) -> bool:
+		return args.ufmn is not None
+
+	def load_data(self, args: Namespace) -> Dict[str, DataFrame]:
+		with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
+			return {
+				 'ufmn/patients': load_patients_sql(con),
+				 'ufmn/als_data': load_als_data_sql(con),
+				'ufmn/resp_data': load_resp_data_sql(con),
+				'ufmn/nutr_data': load_nutr_data_sql(con),
+			}

@@ -1,6 +1,9 @@
-from argparse import ArgumentParser, Namespace
+from argparse    import ArgumentParser, Namespace
 
 import pandas as pd
+
+from datasources import DataSource, datasource
+
 
 PATIENT_ID_COLUMN = 'Pacient (NHC)'
 EPISODE_ID_COLUMN = 'Episodi'
@@ -38,15 +41,6 @@ FFILL_COLUMNS = [
 ]
 
 
-def add_data_source_arguments(parser: ArgumentParser) -> None:
-	parser.add_argument('--hub-hosp', metavar='EXCEL_FILE',
-	                    help='Excel file containing HUB hospitalization data')
-	parser.add_argument('--hub-hosp-excel-tab', default=0,
-	                    metavar='NAME', help='Excel tab containing HUB hospitalization data')
-	parser.add_argument('--hub-hosp-column-row', type=int, default=1,
-	                    metavar='ROW', help='Excel row number containing column names')
-
-
 def load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df = df.copy()
 	df.drop_duplicates(subset=EPISODE_COLUMNS.keys(), inplace=True)
@@ -66,12 +60,28 @@ def load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	return df
 
 
-def load_data(args: Namespace) -> pd.DataFrame:
-	df = pd.read_excel(args.hub_hosp, sheet_name=args.hub_hosp_excel_tab,
-	                   header=args.hub_hosp_column_row - 1)
-	df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
+@datasource(name='hub_hosp')
+class HUBHosp(DataSource):
 
-	return {
-		 'hub_hosp/episodes': load_episodes_from_df(df),
-		'hub_hosp/diagnoses': load_diagnoses_from_df(df),
-	}
+	@staticmethod
+	def add_arguments(parser: ArgumentParser) -> None:
+		parser.add_argument('--hub-hosp', metavar='EXCEL_FILE',
+		                    help='Excel file containing HUB hospitalization data')
+		parser.add_argument('--hub-hosp-excel-tab', default=0,
+		                    metavar='NAME', help='Excel tab containing HUB hospitalization data')
+		parser.add_argument('--hub-hosp-column-row', type=int, default=1,
+		                    metavar='ROW', help='Excel row number containing column names')
+
+	@staticmethod
+	def has_arguments(args: Namespace) -> bool:
+		return args.hub_hosp is not None
+
+	def load_data(args: Namespace) -> pd.DataFrame:
+		df = pd.read_excel(args.hub_hosp, sheet_name=args.hub_hosp_excel_tab,
+		                   header=args.hub_hosp_column_row - 1)
+		df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
+
+		return {
+		     'hub_hosp/episodes': load_episodes_from_df(df),
+		    'hub_hosp/diagnoses': load_diagnoses_from_df(df),
+		}
