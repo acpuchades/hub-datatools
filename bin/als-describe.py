@@ -29,5 +29,8 @@ if __name__ == '__main__':
 		project = projectclass(args.datadir)
 		project.describe()
 
+	except NotImplementedError:
+		print(f'{sys.argv[0]}: project "{args.project}" does not implement describe\n', file=sys.stderr)
+
 	except Exception as e:
-		parser.error(e)
+		print(f'{sys.argv[0]}: {e}\n', file=sys.stderr)

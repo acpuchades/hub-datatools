@@ -51,4 +51,4 @@ if __name__ == '__main__':
 			parser.error('no data sources given')
 
 	except Exception as e:
-		parser.error(e)
+		print(f'{sys.argv[0]}: {e}\n', file=sys.stderr)

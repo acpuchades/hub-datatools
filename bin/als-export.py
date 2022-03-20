@@ -102,7 +102,7 @@ if __name__ == '__main__':
 		                   format=args.format, replace=args.replace)
 
 	except FileExistsError:
-		parser.error('output file already exists')
+		print(f'{sys.argv[0]}: output file already exists\n', file=sys.stderr)
 
 	except Exception as e:
-		parser.error(e)
+		print(f'{sys.argv[0]}: {e}\n', file=sys.stderr)
