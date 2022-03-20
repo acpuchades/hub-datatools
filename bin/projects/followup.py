@@ -67,7 +67,6 @@ def _calculate_mitos_from_followup(df: DataFrame) -> Series:
 	domains += breathing.astype('Int64')
 	return domains
 
-
 def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_data: DataFrame = None, nutr_data: DataFrame = None):
 	als_data = als_data if als_data is not None else load_data(datadir, 'ufmn/als_data')
 	nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr_data')
@@ -75,10 +74,10 @@ def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_da
 
 	followups = als_data.merge(nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
 	followups = followups.merge(resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
-	followups.loc[:, FFILL_COLUMNS].ffill(inplace=True)
+	followups.loc[:, FFILL_COLUMNS] = followups.groupby('id_paciente')[FFILL_COLUMNS].transform(lambda x: x.ffill())
 
-	followups['cortar'] = followups.cortar_con_peg.where(followups.portador_peg)
 	followups['cortar'] = followups.cortar_sin_peg.where(~followups.portador_peg.fillna(False))
+	followups['cortar'] = followups.cortar_con_peg.where(followups.portador_peg)
 
 	followups['kings_c'] = _calculate_kings_from_followup(followups)
 	followups['mitos_c'] = _calculate_mitos_from_followup(followups)
@@ -95,4 +94,4 @@ class FollowUp(Project):
 		self._followups = followups.merge(patients, on='id_paciente')
 
 	def export_data(self) -> DataFrame:
-		return self._followups[EXPORT_COLUMNS]
+		return self._followups[EXPORT_COLUMNS].reset_index(drop=True)
