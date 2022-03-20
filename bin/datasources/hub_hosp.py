@@ -50,7 +50,7 @@ def _load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df.inicio_episodio = pd.to_datetime(df.inicio_episodio)
 	df.fin_episodio = pd.to_datetime
 	df.set_index('id_episodio', inplace=True)
-	df.dropna(axis='index', inplace=True)
+	df.dropna(how='all', inplace=True)
 	return df
 
 
@@ -58,7 +58,7 @@ def _load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df = df.copy()[DIAGNOSES_COLUMNS.keys()]
 	df.rename(columns=DIAGNOSES_COLUMNS, inplace=True)
 	df.set_index(['id_episodio', 'codigo_dx'], inplace=True)
-	df.dropna(axis='index', inplace=True)
+	df.dropna(how='all', inplace=True)
 	return df
 
 

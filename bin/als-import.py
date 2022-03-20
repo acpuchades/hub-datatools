@@ -50,5 +50,5 @@ if __name__ == '__main__':
 		if nsources == 0:
 			parser.error('no data sources given')
 
-	except Exception as e:
-		print(f'{sys.argv[0]}: {e}\n', file=sys.stderr)
+	except FileExistsError:
+		print(f'{sys.argv[0]}: data file already exists', file=sys.stderr)

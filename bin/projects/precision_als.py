@@ -174,4 +174,4 @@ class PrecisionALS(Project):
 			'fvc_lying_dx_y4': None,
 			'fvc_lying_dx_y5': None,
 
-		})
+		}).reset_index(drop=True)
