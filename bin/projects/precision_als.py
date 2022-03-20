@@ -79,9 +79,6 @@ class PrecisionALS(Project):
 		self._followups['mitos_c'] = _calculate_mitos_from_followups(followups)
 
 	def describe(self) -> None:
-		gene_info = self._cases[['estado_c9', 'estado_sod1', 'estado_atxn2']]
-		gene_cases = self._cases[gene_info.notna().any(axis='columns')]
-
 		print()
 		print(' .:: PRECISION ALS ::.')
 		print()
@@ -91,11 +88,10 @@ class PrecisionALS(Project):
 		print(f' > Total number of cases: {len(self._cases)}')
 		print(f' > Current number of living cases: {len(self._cases[~self._cases.exitus])}')
 
-		print(f' > Number of cases with genetic testing available: {len(gene_cases)}')
+		gene_info = self._cases[self._cases[GENE_FIELDS.values()].notna().any(axis=1)]
+		print(f' > Number of cases with some genetic data available: {len(gene_info)}')
 		for name, field in GENE_FIELDS.items():
-			gene_status = self._cases[field]
-			print(f'\t * {name} -> {len(self._cases[gene_status.notna()])} (altered: {len(self._cases[gene_status == "Alterado"])})')
-
+			print(f'\t * {name} -> {sum(gene_info[field].notna())} (altered: {sum(gene_info[field] == "Alterado")})')
 		print()
 
 		print(' Biogen Extant Task 2')
@@ -108,25 +104,22 @@ class PrecisionALS(Project):
 		print(' Biogen Extant Task 3')
 		print(' --------------------')
 		print(f' > Time to ambulation support: {len(self._als_data[self._als_data.caminar <= 2].value_counts("id_paciente"))}')
-		print(f' > Time to CPAP: {len(self._resp_data[self._resp_data.cpap.fillna(False)].value_counts("id_paciente"))}')
-		print(f' > Time to VMNI: {len(self._resp_data[self._resp_data.portador_vmni.fillna(False)].value_counts("id_paciente"))}')
-		print(f' > Time to PEG: {len(self._nutr_data[self._nutr_data.indicacion_peg.fillna(False)].value_counts("id_paciente"))}')
-
+		print(f' > Time to CPAP: {len(self._resp_data[self._resp_data.inicio_cpap.notna()].value_counts("id_paciente"))}')
+		print(f' > Time to VMNI: {len(self._resp_data[self._resp_data.inicio_vmni.notna()].value_counts("id_paciente"))}')
+		print(f' > Time to PEG: {len(self._nutr_data[self._nutr_data.fecha_indicacion_peg.notna()].value_counts("id_paciente"))}')
 		print(f' > Time to MiToS: {len(self._followups[self._followups.mitos_c.notna()].value_counts("id_paciente"))}')
 		for n in range(5):
 			print(f'\t * Stage {n} -> {len(self._followups[self._followups.mitos_c == n].value_counts("id_paciente"))}')
-
 		print(f' > Time to King\'s: {len(self._followups[self._followups.kings_c.notna()].value_counts("id_paciente"))}')
 		for n in range(5):
 			print(f'\t * Stage {n} -> {len(self._followups[self._followups.kings_c == n].value_counts("id_paciente"))}')
-
-		print(f' > Time to death: {len(self._cases[~self._cases.fecha_exitus.isna()])}')
+		print(f' > Time to death: {len(self._cases[self._cases.fecha_exitus.notna()])}')
 		print()
 
 		print(' Biogen Extant Task 4')
 		print(' --------------------')
-		print(f' > Patients on Riluzole: {len(self._cases[self._cases.riluzol.fillna(False)])}')
-		print(f' > Time to Riluzole data available: {len(self._cases[~self._cases.inicio_riluzol.isna()])}')
+		print(f' > Patients on Riluzole: {sum(self._cases.riluzol.fillna(False))}')
+		print(f' > Time to Riluzole data available: {sum(self._cases.inicio_riluzol.notna())}')
 		print(f' > Patients with symptomatic treatment data available: (pending)')
 		print()
 
