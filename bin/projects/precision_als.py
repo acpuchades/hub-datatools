@@ -17,6 +17,19 @@ GENE_STATUS_CATEGORIES = {
 	'Alterado': 'Altered',
 }
 
+FOLLOWUP_FFILL_COLUMNS = [
+	'portador_vmni',
+	'indicacion_peg',
+	'portador_peg',
+	'disfagia',
+	'espesante',
+	'inicio_espesante',
+	'supl_nutr_oral',
+	'inicio_supl_nutr_oral',
+	'supl_nutr_ent',
+	'inicio_supl_nutr_ent',
+]
+
 
 def _calculate_kings_from_followups(df: DataFrame) -> Series:
 	bulbar = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1)
@@ -33,7 +46,7 @@ def _calculate_mitos_from_followups(df: DataFrame) -> Series:
 	swallowing = df.deglucion <= 1
 	communicating = (df.lenguaje <= 1) | (df.escritura <= 1)
 	breathing = (df.disnea <= 1) | (df.insuf_resp <= 2)
-	domains = walking_selfcare.astype(float)
+	domains  = walking_selfcare.astype(float)
 	domains += swallowing.astype(float)
 	domains += communicating.astype(float)
 	domains += breathing.astype(float)
@@ -59,6 +72,7 @@ class PrecisionALS(Project):
 
 		followups = self._als_data.merge(self._nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
 		followups = followups.merge(self._resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
+		followups.loc[:, FOLLOWUP_FFILL_COLUMNS].ffill(inplace=True)
 		self._followups = followups
 
 		self._followups['kings_c'] = _calculate_kings_from_followups(followups)
@@ -99,11 +113,11 @@ class PrecisionALS(Project):
 		print(f' > Time to PEG: {len(self._nutr_data[self._nutr_data.indicacion_peg.fillna(False)].value_counts("id_paciente"))}')
 
 		print(f' > Time to MiToS: {len(self._followups[self._followups.mitos_c.notna()].value_counts("id_paciente"))}')
-		for n in range(1, 5):
+		for n in range(5):
 			print(f'\t * Stage {n} -> {len(self._followups[self._followups.mitos_c == n].value_counts("id_paciente"))}')
 
 		print(f' > Time to King\'s: {len(self._followups[self._followups.kings_c.notna()].value_counts("id_paciente"))}')
-		for n in range(1, 5):
+		for n in range(5):
 			print(f'\t * Stage {n} -> {len(self._followups[self._followups.kings_c == n].value_counts("id_paciente"))}')
 
 		print(f' > Time to death: {len(self._cases[~self._cases.fecha_exitus.isna()])}')
@@ -160,14 +174,14 @@ class PrecisionALS(Project):
 
 			'death': self._cases.fecha_exitus,
 
-			'alsfrs_baseline': None,
+			'alsfrs_dx': None,
 			'alsfrs_dx_y1': None,
 			'alsfrs_dx_y2': None,
 			'alsfrs_dx_y3': None,
 			'alsfrs_dx_y4': None,
 			'alsfrs_dx_y5': None,
 
-			'alsfrs_bulbar_baseline': None,
+			'alsfrs_bulbar_dx': None,
 			'alsfrs_bulbar_dx_y1': None,
 			'alsfrs_bulbar_dx_y2': None,
 			'alsfrs_bulbar_dx_y3': None,
