@@ -1,9 +1,11 @@
-from pathlib   import Path
+from pathlib import Path
 
-from pandas    import DataFrame, Series
+from pandas import DataFrame, Series
 
-from projects  import Project, project
+from projects import Project, project
+from projects.followup import load_followup_data
 from serialize import load_data
+
 
 GENE_FIELDS = {
 	 'C9orf72': 'estado_c9',
@@ -11,49 +13,13 @@ GENE_FIELDS = {
 	   'ATXN2': 'estado_atxn2',
 }
 
-
 GENE_STATUS_CATEGORIES = {
 	  'Normal': 'Normal',
 	'Alterado': 'Altered',
 }
 
-FOLLOWUP_FFILL_COLUMNS = [
-	'portador_vmni',
-	'indicacion_peg',
-	'portador_peg',
-	'disfagia',
-	'espesante',
-	'inicio_espesante',
-	'supl_nutr_oral',
-	'inicio_supl_nutr_oral',
-	'supl_nutr_ent',
-	'inicio_supl_nutr_ent',
-]
 
-
-def _calculate_kings_from_followups(df: DataFrame) -> Series:
-	bulbar = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1)
-	upper = (df[['escritura', 'cortar_sin_peg']] < 4).any(axis=1)
-	lower = df.caminar < 4
-	endstage = df.indicacion_peg | (df.disnea == 0) | (df.insuf_resp < 4)
-	regions = bulbar.astype(float) + upper.astype(float) + lower.astype(float)
-	endstage = endstage.astype(float) * 4
-	return endstage.where(endstage == 4, regions)
-
-
-def _calculate_mitos_from_followups(df: DataFrame) -> Series:
-	walking_selfcare = (df.caminar <= 1) | (df.vestido <= 1)
-	swallowing = df.deglucion <= 1
-	communicating = (df.lenguaje <= 1) | (df.escritura <= 1)
-	breathing = (df.disnea <= 1) | (df.insuf_resp <= 2)
-	domains  = walking_selfcare.astype(float)
-	domains += swallowing.astype(float)
-	domains += communicating.astype(float)
-	domains += breathing.astype(float)
-	return domains
-
-
-@project(name='precision_als')
+@project('precision_als')
 class PrecisionALS(Project):
 
 	def __init__(self, datadir: Path):
@@ -70,13 +36,9 @@ class PrecisionALS(Project):
 		self._hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
 		self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
 
-		followups = self._als_data.merge(self._nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
-		followups = followups.merge(self._resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
-		followups.loc[:, FOLLOWUP_FFILL_COLUMNS].ffill(inplace=True)
-		self._followups = followups
-
-		self._followups['kings_c'] = _calculate_kings_from_followups(followups)
-		self._followups['mitos_c'] = _calculate_mitos_from_followups(followups)
+		self._followups = load_followup_data(als_data=self._als_data,
+		                                     nutr_data=self._nutr_data,
+		                                     resp_data=self._resp_data)
 
 	def describe(self) -> None:
 		print()

@@ -283,7 +283,7 @@ def _clean_nutr_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace='inicio_supl_nutr_ent')
 
 
-@datasource(name='ufmn')
+@datasource('ufmn')
 class UFMN(DataSource):
 
 	@staticmethod
