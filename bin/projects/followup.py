@@ -5,7 +5,7 @@ from projects import Project, project
 from serialize import load_data
 
 
-FOLLOWUP_FFILL_COLUMNS = [
+FFILL_COLUMNS = [
 	'portador_vmni',
 	'indicacion_peg',
 	'portador_peg',
@@ -18,7 +18,7 @@ FOLLOWUP_FFILL_COLUMNS = [
 	'inicio_supl_nutr_ent',
 ]
 
-RESULT_COLUMNS = [
+EXPORT_COLUMNS = [
 	'nhc',
 	'fecha_visita',
 	'lenguaje',
@@ -75,7 +75,7 @@ def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_da
 
 	followups = als_data.merge(nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
 	followups = followups.merge(resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
-	followups.loc[:, FOLLOWUP_FFILL_COLUMNS].ffill(inplace=True)
+	followups.loc[:, FFILL_COLUMNS].ffill(inplace=True)
 
 	followups['cortar'] = followups.cortar_con_peg.where(followups.portador_peg)
 	followups['cortar'] = followups.cortar_sin_peg.where(~followups.portador_peg.fillna(False))
@@ -95,4 +95,4 @@ class FollowUp(Project):
 		self._followups = followups.merge(patients, on='id_paciente')
 
 	def export_data(self) -> DataFrame:
-		return self._followups[RESULT_COLUMNS]
+		return self._followups[EXPORT_COLUMNS]
