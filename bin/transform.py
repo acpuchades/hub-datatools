@@ -67,6 +67,14 @@ def transform_number(data: pd.Series, errors: str = 'raise', **kwargs) -> pd.Ser
 	return pd.to_numeric(data, errors=errors)
 
 
+def transform_number(data: pd.Series, errors: str = 'raise', **kwargs) -> pd.Series:
+	data = data.str.replace(',', '.', regex=False)
+	data = data.str.replace('..', '.', regex=False)
+	return pd.to_numeric(data, errors=errors)
+
+def transform_cast(type: str) -> TransformFn:
+	return lambda df, **kwargs: df.astype(type)
+
 def apply_transform_pipeline(df: pd.DataFrame, field: str, pipeline: Iterable[TransformFn],
                              inplace: bool | str = False, **kwargs) -> pd.DataFrame:
 	data = df[field]
@@ -78,7 +86,10 @@ def apply_transform_pipeline(df: pd.DataFrame, field: str, pipeline: Iterable[Tr
 
 	return data
 
+
 OPT_BOOL_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_bool)
 OPT_DATE_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_fix_date_typos, transform_date)
 OPT_ENUM_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_enum)
 OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_common_typos, transform_opt, transform_number)
+OPT_INT_PIPELINE    = (transform_strip, transform_fix_common_typos, transform_opt, transform_number, transform_cast('Int64'))
+OPT_FLOAT_PIPELINE  = (transform_strip, transform_fix_common_typos, transform_opt, transform_number, transform_cast('Float64'))
