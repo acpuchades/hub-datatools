@@ -8,9 +8,8 @@ from pandas    import DataFrame
 
 class Project(ABC):
 
-	@abstractmethod
 	def describe(self) -> None:
-		pass
+		raise NotImplementedError()
 
 	@abstractmethod
 	def export_data(self) -> DataFrame | Dict[str, DataFrame]:

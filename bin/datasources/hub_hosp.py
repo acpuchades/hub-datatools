@@ -62,7 +62,7 @@ def _load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	return df
 
 
-@datasource(name='hub_hosp')
+@datasource('hub_hosp')
 class HUBHosp(DataSource):
 
 	@staticmethod
