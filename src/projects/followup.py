@@ -118,7 +118,7 @@ def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_da
 
 	followups = als_data.merge(nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
 	followups = followups.merge(resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
-	followups.loc[:, FFILL_COLUMNS] = followups.groupby('id_paciente')[FFILL_COLUMNS].transform(lambda x: x.ffill())
+	followups[FFILL_COLUMNS] = followups.groupby('id_paciente')[FFILL_COLUMNS].ffill()
 
 	followups['cortar'] = None
 	followups.cortar = followups[followups.portador_peg.fillna(False)].cortar_con_peg
@@ -127,11 +127,11 @@ def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_da
 	followups['kings_c'] = _calculate_kings_from_followup(followups)
 	followups['mitos_c'] = _calculate_mitos_from_followup(followups)
 
-	followups['alsfrs_total_c'] = followups[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False)
 	followups['alsfrs_bulbar_c'] = followups[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False)
 	followups['alsfrs_motorf_c'] = followups[ALSFRS_MOTORF_COLUMNS].sum(axis=1, skipna=False)
 	followups['alsfrs_motorg_c'] = followups[ALSFRS_MOTORG_COLUMNS].sum(axis=1, skipna=False)
 	followups['alsfrs_resp_c'] = followups[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False)
+	followups['alsfrs_total_c'] = followups[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False)
 
 	return followups
 

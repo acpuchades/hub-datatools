@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pandas import DataFrame, Series
+import pandas as pd
 
 from projects import Project, project
 from projects.followup import load_followup_data
@@ -18,6 +18,19 @@ GENE_STATUS_CATEGORIES = {
 	'Alterado': 'Altered',
 }
 
+SEX_CATEGORIES = {
+	'Hombre': 'Male',
+	 'Mujer': 'Female'
+}
+
+ALSFRS_COLUMNS = [
+	'alsfrs_total_c',
+	'alsfrs_bulbar_c',
+	'alsfrs_motorf_c',
+	'alsfrs_motorg_c',
+	'alsfrs_resp_c',
+]
+
 
 @project('precision_als')
 class PrecisionALS(Project):
@@ -26,19 +39,12 @@ class PrecisionALS(Project):
 		self._patients = load_data(datadir, 'ufmn/patients')
 		self._cases = self._patients[self._patients.fecha_dx.notna()]
 
-		self._als_data  = load_data(datadir, 'ufmn/als_data')
-		self._resp_data = load_data(datadir, 'ufmn/resp_data')
-		self._nutr_data = load_data(datadir, 'ufmn/nutr_data')
+		self._followups = load_followup_data(datadir)
 
 		self._urg_episodes = load_data(datadir, 'hub_urg/episodes')
 		self._urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
-
 		self._hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
 		self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
-
-		self._followups = load_followup_data(als_data=self._als_data,
-		                                     nutr_data=self._nutr_data,
-		                                     resp_data=self._resp_data)
 
 	def describe(self) -> None:
 		print()
@@ -65,10 +71,10 @@ class PrecisionALS(Project):
 
 		print(' Biogen Extant Task 3')
 		print(' --------------------')
-		print(f' > Time to ambulation support: {len(self._als_data[self._als_data.caminar <= 2].value_counts("id_paciente"))}')
-		print(f' > Time to CPAP: {len(self._resp_data[self._resp_data.inicio_cpap.notna()].value_counts("id_paciente"))}')
-		print(f' > Time to VMNI: {len(self._resp_data[self._resp_data.inicio_vmni.notna()].value_counts("id_paciente"))}')
-		print(f' > Time to PEG: {len(self._nutr_data[self._nutr_data.fecha_indicacion_peg.notna()].value_counts("id_paciente"))}')
+		print(f' > Time to ambulation support: {len(self._followups[self._followups.caminar <= 2].value_counts("id_paciente"))}')
+		print(f' > Time to CPAP: {len(self._followups[self._followups.inicio_cpap.notna()].value_counts("id_paciente"))}')
+		print(f' > Time to VMNI: {len(self._followups[self._followups.inicio_vmni.notna()].value_counts("id_paciente"))}')
+		print(f' > Time to PEG: {len(self._followups[self._followups.fecha_indicacion_peg.notna()].value_counts("id_paciente"))}')
 		print(f' > Time to MiToS: {len(self._followups[self._followups.mitos_c.notna()].value_counts("id_paciente"))}')
 		for n in range(5):
 			print(f'\t * Stage {n} -> {len(self._followups[self._followups.mitos_c == n].value_counts("id_paciente"))}')
@@ -97,20 +103,18 @@ class PrecisionALS(Project):
 		print(f' > Patients with level of assistance data available: (pending)')
 		print()
 
-	def export_data(self) -> DataFrame:
-
-		return DataFrame({
+	def export_data(self) -> pd.DataFrame:
+		return pd.DataFrame({
 
 			'site': 'Bellvitge Barcelona',
 			'patient_id': self._cases.cip,
 
 			'birthdate': self._cases.fecha_nacimiento,
-			'sex': self._cases.sexo.map({ 'Hombre': 'Male', 'Mujer': 'Female' }),
+			'sex': self._cases.sexo.map(SEX_CATEGORIES),
 
 			'c9_status': self._cases.estado_c9.map(GENE_STATUS_CATEGORIES),
 			'sod1_status': self._cases.estado_sod1.map(GENE_STATUS_CATEGORIES),
-			'fus_status': None,
-			'tardbp_status': None,
+			'atxn2_status': self._cases.estado_atxn2.map(GENE_STATUS_CATEGORIES),
 
 			'clinical_onset': self._cases.inicio_clinica,
 			'als_dx': self._cases.fecha_dx,
@@ -129,12 +133,21 @@ class PrecisionALS(Project):
 
 			'death': self._cases.fecha_exitus,
 
-			'alsfrs_dx_m3': None,
-			'alsfrs_dx_y1': None,
-			'alsfrs_dx_y2': None,
-			'alsfrs_dx_y3': None,
-			'alsfrs_dx_y4': None,
-			'alsfrs_dx_y5': None,
+			'alsfrs_total_dx': None,
+			'alsfrs_total_dx_m3': None,
+			'alsfrs_total_dx_y1': None,
+			'alsfrs_total_dx_y2': None,
+			'alsfrs_total_dx_y3': None,
+			'alsfrs_total_dx_y4': None,
+			'alsfrs_total_dx_y5': None,
+
+			'alsfrs_bulbar_dx': None,
+			'alsfrs_bulbar_dx_m3': None,
+			'alsfrs_bulbar_dx_y1': None,
+			'alsfrs_bulbar_dx_y2': None,
+			'alsfrs_bulbar_dx_y3': None,
+			'alsfrs_bulbar_dx_y4': None,
+			'alsfrs_bulbar_dx_y5': None,
 
 			'kings_dx': None,
 			'kings_dx_m3': None,
@@ -160,18 +173,17 @@ class PrecisionALS(Project):
 			'riluzole_received': self._cases.riluzol,
 			'riluzole_initiation': self._cases.inicio_riluzol,
 
-			'fvc_sitting_baseline': None,
+			'fvc_sitting_dx': None,
 			'fvc_sitting_dx_y1': None,
 			'fvc_sitting_dx_y2': None,
 			'fvc_sitting_dx_y3': None,
 			'fvc_sitting_dx_y4': None,
 			'fvc_sitting_dx_y5': None,
 
-			'fvc_lying_baseline': None,
+			'fvc_lying_dx': None,
 			'fvc_lying_dx_y1': None,
 			'fvc_lying_dx_y2': None,
 			'fvc_lying_dx_y3': None,
 			'fvc_lying_dx_y4': None,
 			'fvc_lying_dx_y5': None,
-
 		}).reset_index(drop=True)

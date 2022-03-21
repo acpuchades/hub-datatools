@@ -7,9 +7,7 @@ from serialize import load_data
 
 
 EXPORT_COLUMNS = [
-	'nhc',
-	'dni',
-	'cip',
+	'nhc', 'dni', 'cip',
 ]
 
 @project('patient_ids')
