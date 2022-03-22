@@ -2,12 +2,13 @@
 
 import sys
 import warnings
-from argparse  import ArgumentParser
-from pathlib   import Path
-from typing    import Any, Dict, Optional
+from argparse import ArgumentParser
+from pathlib import Path
+from typing import Any, Dict, Optional
 
 from pandas import DataFrame
 
+from serialize import load_data
 from projects import get_project_class, get_project_names, load_project_modules
 
 
@@ -76,8 +77,13 @@ def export_output_data(data: DataFrame | Dict[str, DataFrame], path: Path, forma
 def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory containing snapshot data')
-	parser.add_argument('-p', '--project', choices=get_project_names(), help='prepare data for selected project')
+
+	group = parser.add_mutually_exclusive_group()
+	group.add_argument('-s', '--source', help='output data from selected data source')
+	group.add_argument('-p', '--project', choices=get_project_names(), help='output data for selected project')
+
 	parser.add_argument('-f', '--format', default='csv', choices=EXPORT_FORMATS.keys(), help='file output format to use')
+	parser.add_argument('-c', '--columns', help='output only selected data columns')
 	parser.add_argument('-o', '--output', type=Path, help='file or directory to output project results')
 	parser.add_argument('-r', '--replace', action='store_true', help='replace existing file if already exists')
 	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
@@ -94,12 +100,24 @@ if __name__ == '__main__':
 		if args.quiet:
 			warnings.filterwarnings('ignore')
 
-		projectclass = get_project_class(args.project)
-		project = projectclass(args.datadir)
-		data = project.export_data()
+		if args.project is not None:
+			projectclass = get_project_class(args.project)
+			project = projectclass(datadir=args.datadir)
+			data = project.export_data()
+		elif args.source is not None:
+			data = load_data(args.datadir, args.source)
+		else:
+			parser.error('no data sources to be exported were given')
+
+		if args.columns is not None:
+			data = data[args.columns.split(',')]
 
 		export_output_data(data, path=args.output,
 		                   format=args.format, replace=args.replace)
 
+
 	except FileExistsError:
 		print(f'{sys.argv[0]}: output file already exists', file=sys.stderr)
+
+	except FileNotFoundError:
+		print(f'{sys.argv[0]}: source file not found', file=sys.stderr)

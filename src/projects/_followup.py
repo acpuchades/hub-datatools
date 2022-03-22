@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from pandas import DataFrame, Series
-from projects import Project, project
 from serialize import load_data
 
 
@@ -57,38 +56,6 @@ ALSFRS_RESP_COLUMNS = [
 	'insuf_resp',
 ]
 
-EXPORT_COLUMNS = [
-	'nhc',
-	'fecha_visita',
-	'lenguaje',
-	'salivacion',
-	'deglucion',
-	'escritura',
-	'cortar_sin_peg',
-	'cortar_con_peg',
-	'cortar',
-	'vestido',
-	'cama',
-	'caminar',
-	'subir_escaleras',
-	'disnea',
-	'ortopnea',
-	'insuf_resp',
-	'alsfrs_total',
-	'alsfrs_total_c',
-	'alsfrs_bulbar',
-	'alsfrs_bulbar_c',
-	'alsfrs_motorf_c',
-	'alsfrs_motorg_c',
-	'alsfrs_resp_c',
-	'indicacion_peg',
-	'portador_peg',
-	'kings',
-	'kings_c',
-	'mitos',
-	'mitos_c',
-]
-
 
 def _calculate_kings_from_followup(df: DataFrame) -> Series:
 	bulbar = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1)
@@ -111,6 +78,22 @@ def _calculate_mitos_from_followup(df: DataFrame) -> Series:
 	domains += breathing.astype('Int64')
 	return domains
 
+
+def _add_calculated_fields(df: DataFrame) -> None:
+	df['cortar'] = None
+	df.cortar = df[df.portador_peg.fillna(False)].cortar_con_peg
+	df.cortar = df[~df.portador_peg.fillna(False)].cortar_sin_peg
+
+	df['kings_c'] = _calculate_kings_from_followup(df)
+	df['mitos_c'] = _calculate_mitos_from_followup(df)
+
+	df['alsfrs_bulbar_c'] = df[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	df['alsfrs_motorf_c'] = df[ALSFRS_MOTORF_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	df['alsfrs_motorg_c'] = df[ALSFRS_MOTORG_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	df['alsfrs_resp_c'] = df[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	df['alsfrs_total_c'] = df[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+
+
 def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_data: DataFrame = None, nutr_data: DataFrame = None):
 	als_data = als_data if als_data is not None else load_data(datadir, 'ufmn/als_data')
 	nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr_data')
@@ -125,29 +108,6 @@ def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_da
 	                     .groupby(level=[0, 1]).bfill().reset_index() \
 	                     .drop_duplicates(['id_paciente', 'fecha_visita'])
 
-	followups['cortar'] = None
-	followups.cortar = followups[followups.portador_peg.fillna(False)].cortar_con_peg
-	followups.cortar = followups[~followups.portador_peg.fillna(False)].cortar_sin_peg
-
-	followups['kings_c'] = _calculate_kings_from_followup(followups)
-	followups['mitos_c'] = _calculate_mitos_from_followup(followups)
-
-	followups['alsfrs_bulbar_c'] = followups[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-	followups['alsfrs_motorf_c'] = followups[ALSFRS_MOTORF_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-	followups['alsfrs_motorg_c'] = followups[ALSFRS_MOTORG_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-	followups['alsfrs_resp_c'] = followups[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-	followups['alsfrs_total_c'] = followups[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	_add_calculated_fields(followups)
 
 	return followups
-
-
-@project('followup')
-class FollowUp(Project):
-
-	def __init__(self, datadir: Path):
-		followups = load_followup_data(datadir)
-		patients = load_data(datadir, 'ufmn/patients')
-		self._followups = followups.merge(patients, on='id_paciente')
-
-	def export_data(self) -> DataFrame:
-		return self._followups[EXPORT_COLUMNS].reset_index(drop=True)

@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from projects import Project, project
-from projects.followup import load_followup_data
+from projects._followup import load_followup_data
 from serialize import load_data
 
 
