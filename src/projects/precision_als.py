@@ -32,15 +32,32 @@ ALSFRS_COLUMNS = [
 ]
 
 
+def _resample_patient_followups(df: pd.DataFrame, start: pd.Series, freq: str):
+
+	def _resample_helper(group: pd.DataFrame):
+		assert(group.id_paciente.nunique() == 1)
+		pid = group.iloc[0].id_paciente
+		end = group.index.max()
+		begin = None
+		if pid in start.index:
+			begin = start[pid]
+		if pd.isna(begin):
+			begin = end
+		index = pd.date_range(name='fecha', start=begin, end=end, freq='D')
+		return group.reindex(index).ffill().asfreq(freq)
+
+	df = df.set_index('fecha_visita').groupby('id_paciente').apply(_resample_helper)
+	df = df.drop('id_paciente', axis=1).reset_index()
+	return df
+
+
 @project('precision_als')
 class PrecisionALS(Project):
 
 	def __init__(self, datadir: Path):
-		self._patients = load_data(datadir, 'ufmn/patients')
-		self._cases = self._patients[self._patients.fecha_dx.notna()]
-
+		patients = load_data(datadir, 'ufmn/patients')
+		self._patients = patients[patients.fecha_dx.notna()]
 		self._followups = load_followup_data(datadir)
-
 		self._urg_episodes = load_data(datadir, 'hub_urg/episodes')
 		self._urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
 		self._hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
@@ -104,20 +121,22 @@ class PrecisionALS(Project):
 		print()
 
 	def export_data(self) -> pd.DataFrame:
+		from_dx = _resample_patient_followups(self._followups, start=self._patients.fecha_dx, freq='M')
+		from_onset = _resample_patient_followups(self._followups, start=self._patients.inicio_clinica, freq='M')
+
 		return pd.DataFrame({
-
 			'site': 'Bellvitge Barcelona',
-			'patient_id': self._cases.cip,
+			'patient_id': self._patients.cip,
 
-			'birthdate': self._cases.fecha_nacimiento,
-			'sex': self._cases.sexo.map(SEX_CATEGORIES),
+			'birthdate': self._patients.fecha_nacimiento,
+			'sex': self._patients.sexo.map(SEX_CATEGORIES),
 
-			'c9_status': self._cases.estado_c9.map(GENE_STATUS_CATEGORIES),
-			'sod1_status': self._cases.estado_sod1.map(GENE_STATUS_CATEGORIES),
-			'atxn2_status': self._cases.estado_atxn2.map(GENE_STATUS_CATEGORIES),
+			'c9_status': self._patients.estado_c9.map(GENE_STATUS_CATEGORIES),
+			'sod1_status': self._patients.estado_sod1.map(GENE_STATUS_CATEGORIES),
+			'atxn2_status': self._patients.estado_atxn2.map(GENE_STATUS_CATEGORIES),
 
-			'clinical_onset': self._cases.inicio_clinica,
-			'als_dx': self._cases.fecha_dx,
+			'clinical_onset': self._patients.inicio_clinica,
+			'als_dx': self._patients.fecha_dx,
 
 			'kings_0': self._followups[self._followups.kings_c == 0].groupby('id_paciente').fecha_visita.min(),
 			'kings_1': self._followups[self._followups.kings_c == 1].groupby('id_paciente').fecha_visita.min(),
@@ -131,59 +150,58 @@ class PrecisionALS(Project):
 			'mitos_3': self._followups[self._followups.mitos_c == 3].groupby('id_paciente').fecha_visita.min(),
 			'mitos_4': self._followups[self._followups.mitos_c == 4].groupby('id_paciente').fecha_visita.min(),
 
-			'death': self._cases.fecha_exitus,
+			'death': self._patients.fecha_exitus,
 
-			'alsfrs_total_dx': None,
-			'alsfrs_total_dx_m3': None,
-			'alsfrs_total_dx_y1': None,
-			'alsfrs_total_dx_y2': None,
-			'alsfrs_total_dx_y3': None,
-			'alsfrs_total_dx_y4': None,
-			'alsfrs_total_dx_y5': None,
+			'alsfrs_dx': from_dx.groupby('id_paciente').nth(0).alsfrs_total_c,
+			'alsfrs_dx_m3': from_dx.groupby('id_paciente').nth(3).alsfrs_total_c,
+			'alsfrs_dx_y1': from_dx.groupby('id_paciente').nth(1 * 12).alsfrs_total_c,
+			'alsfrs_dx_y2': from_dx.groupby('id_paciente').nth(2 * 12).alsfrs_total_c,
+			'alsfrs_dx_y3': from_dx.groupby('id_paciente').nth(3 * 12).alsfrs_total_c,
+			'alsfrs_dx_y4': from_dx.groupby('id_paciente').nth(4 * 12).alsfrs_total_c,
+			'alsfrs_dx_y5': from_dx.groupby('id_paciente').nth(5 * 12).alsfrs_total_c,
 
-			'alsfrs_bulbar_dx': None,
-			'alsfrs_bulbar_dx_m3': None,
-			'alsfrs_bulbar_dx_y1': None,
-			'alsfrs_bulbar_dx_y2': None,
-			'alsfrs_bulbar_dx_y3': None,
-			'alsfrs_bulbar_dx_y4': None,
-			'alsfrs_bulbar_dx_y5': None,
+			'alsfrs_onset_m3': from_onset.groupby('id_paciente').nth(3).alsfrs_total_c,
+			'alsfrs_onset_y1': from_onset.groupby('id_paciente').nth(1 * 12).alsfrs_total_c,
+			'alsfrs_onset_y2': from_onset.groupby('id_paciente').nth(2 * 12).alsfrs_total_c,
+			'alsfrs_onset_y3': from_onset.groupby('id_paciente').nth(3 * 12).alsfrs_total_c,
+			'alsfrs_onset_y4': from_onset.groupby('id_paciente').nth(4 * 12).alsfrs_total_c,
+			'alsfrs_onset_y5': from_onset.groupby('id_paciente').nth(5 * 12).alsfrs_total_c,
 
-			'kings_dx': None,
-			'kings_dx_m3': None,
-			'kings_dx_y1': None,
-			'kings_dx_y2': None,
-			'kings_dx_y3': None,
-			'kings_dx_y4': None,
-			'kings_dx_y5': None,
+			'kings_dx': from_dx.groupby('id_paciente').nth(0).kings_c,
+			'kings_dx_m3': from_dx.groupby('id_paciente').nth(3).kings_c,
+			'kings_dx_y1': from_dx.groupby('id_paciente').nth(1 * 12).kings_c,
+			'kings_dx_y2': from_dx.groupby('id_paciente').nth(2 * 12).kings_c,
+			'kings_dx_y3': from_dx.groupby('id_paciente').nth(3 * 12).kings_c,
+			'kings_dx_y4': from_dx.groupby('id_paciente').nth(4 * 12).kings_c,
+			'kings_dx_y5': from_dx.groupby('id_paciente').nth(5 * 12).kings_c,
 
-			'mitos_dx': None,
-			'mitos_dx_m3': None,
-			'mitos_dx_y1': None,
-			'mitos_dx_y2': None,
-			'mitos_dx_y3': None,
-			'mitos_dx_y4': None,
-			'mitos_dx_y5': None,
+			'kings_onset_m3': from_onset.groupby('id_paciente').nth(3).kings_c,
+			'kings_onset_y1': from_onset.groupby('id_paciente').nth(1 * 12).kings_c,
+			'kings_onset_y2': from_onset.groupby('id_paciente').nth(2 * 12).kings_c,
+			'kings_onset_y3': from_onset.groupby('id_paciente').nth(3 * 12).kings_c,
+			'kings_onset_y4': from_onset.groupby('id_paciente').nth(4 * 12).kings_c,
+			'kings_onset_y5': from_onset.groupby('id_paciente').nth(5 * 12).kings_c,
 
-			'vmni_initiation': None,
-			'peg_initiation': None,
-			'oral_supl_initiation': None,
-			'enteric_supl_initiation': None,
+			'mitos_dx': from_dx.groupby('id_paciente').nth(0).mitos_c,
+			'mitos_dx_m3': from_dx.groupby('id_paciente').nth(3).mitos_c,
+			'mitos_dx_y1': from_dx.groupby('id_paciente').nth(1 * 12).mitos_c,
+			'mitos_dx_y2': from_dx.groupby('id_paciente').nth(2 * 12).mitos_c,
+			'mitos_dx_y3': from_dx.groupby('id_paciente').nth(3 * 12).mitos_c,
+			'mitos_dx_y4': from_dx.groupby('id_paciente').nth(4 * 12).mitos_c,
+			'mitos_dx_y5': from_dx.groupby('id_paciente').nth(5 * 12).mitos_c,
 
-			'riluzole_received': self._cases.riluzol,
-			'riluzole_initiation': self._cases.inicio_riluzol,
+			'mitos_onset_m3': from_onset.groupby('id_paciente').nth(3).mitos_c,
+			'mitos_onset_y1': from_onset.groupby('id_paciente').nth(1 * 12).mitos_c,
+			'mitos_onset_y2': from_onset.groupby('id_paciente').nth(2 * 12).mitos_c,
+			'mitos_onset_y3': from_onset.groupby('id_paciente').nth(3 * 12).mitos_c,
+			'mitos_onset_y4': from_onset.groupby('id_paciente').nth(4 * 12).mitos_c,
+			'mitos_onset_y5': from_onset.groupby('id_paciente').nth(5 * 12).mitos_c,
 
-			'fvc_sitting_dx': None,
-			'fvc_sitting_dx_y1': None,
-			'fvc_sitting_dx_y2': None,
-			'fvc_sitting_dx_y3': None,
-			'fvc_sitting_dx_y4': None,
-			'fvc_sitting_dx_y5': None,
+			'vmni_initiation': self._followups.groupby('id_paciente').inicio_vmni.min(),
+			'peg_initiation': self._followups.groupby('id_paciente').fecha_colocacion_peg.min(),
+			'oral_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_oral.min(),
+			'enteric_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
 
-			'fvc_lying_dx': None,
-			'fvc_lying_dx_y1': None,
-			'fvc_lying_dx_y2': None,
-			'fvc_lying_dx_y3': None,
-			'fvc_lying_dx_y4': None,
-			'fvc_lying_dx_y5': None,
+			'riluzole_received': self._patients.riluzol,
+			'riluzole_initiation': self._patients.inicio_riluzol,
 		}).reset_index(drop=True)

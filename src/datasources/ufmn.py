@@ -66,17 +66,19 @@ GENE_STATUS_ALTERED_VALUE = 'Alterado'
 
 
 def _load_patients_sql(con: Connection) -> DataFrame:
-	df = pd.read_sql_query(f'SELECT * FROM {PATIENT_DATA_TABLE}', con)
-	df.rename(columns={'pid': 'id_paciente'}, inplace=True)
-	df.set_index('id_paciente', inplace=True)
-	_clean_patient_data(df)
+	patients = pd.read_sql_query(f'SELECT * FROM {PATIENT_DATA_TABLE}', con)
+	patients.rename(columns={'pid': 'id_paciente'}, inplace=True)
+	patients.set_index('id_paciente', inplace=True)
+	patients.drop('id', axis=1, inplace=True)
+	_clean_patient_data(patients)
 
 	clinical_data = pd.read_sql_query(f'SELECT * FROM {CLINICAL_DATA_TABLE}', con)
 	clinical_data.rename(columns={'pid': 'id_paciente'}, inplace=True)
 	clinical_data.set_index('id_paciente', inplace=True)
+	clinical_data.drop('id', axis=1, inplace=True)
 	_clean_clinical_data(clinical_data)
 
-	return df.merge(clinical_data, left_index=True, right_index=True)
+	return patients.merge(clinical_data, left_index=True, right_index=True)
 
 
 def _load_als_data_sql(con: Connection) -> DataFrame:
@@ -274,13 +276,13 @@ def _clean_nutr_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'disfagia', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'espesante', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_inicio_espesante', OPT_DATE_PIPELINE, inplace='inicio_espesante')
-	apply_transform_pipeline(df, 'suplementacion_nutricional_oral', OPT_BOOL_PIPELINE, inplace='supl_nutr_oral')
-	apply_transform_pipeline(df, 'fecha_suplementacion_nutricional', OPT_DATE_PIPELINE, inplace='inicio_supl_nutr_oral')
+	apply_transform_pipeline(df, 'suplementacion_nutricional_oral', OPT_BOOL_PIPELINE, inplace='supl_oral')
+	apply_transform_pipeline(df, 'fecha_suplementacion_nutricional', OPT_DATE_PIPELINE, inplace='inicio_supl_oral')
 	apply_transform_pipeline(df, 'restrenimiento', OPT_BOOL_PIPELINE, inplace='estreñimiento')
 	apply_transform_pipeline(df, 'laxante', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'peso_colocacion_peg', OPT_NUMBER_PIPELINE, inplace=True)
-	apply_transform_pipeline(df, 'suplementacion_nutricional_entera', OPT_BOOL_PIPELINE, inplace='supl_nutr_ent')
-	apply_transform_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace='inicio_supl_nutr_ent')
+	apply_transform_pipeline(df, 'suplementacion_nutricional_entera', OPT_BOOL_PIPELINE, inplace='supl_enteral')
+	apply_transform_pipeline(df, 'fecha_inicio_suplementacion_nutricional_entera', OPT_DATE_PIPELINE, inplace='inicio_supl_enteral')
 
 
 @datasource('ufmn')
