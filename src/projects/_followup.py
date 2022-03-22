@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from pandas import DataFrame, Series
+import pandas as pd
+
 from serialize import load_data
 
 
@@ -57,7 +58,7 @@ ALSFRS_RESP_COLUMNS = [
 ]
 
 
-def _calculate_kings_from_followup(df: DataFrame) -> Series:
+def _calculate_kings_from_followup(df: pd.DataFrame) -> pd.Series:
 	bulbar = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1)
 	upper = (df[['escritura', 'cortar_sin_peg']] < 4).any(axis=1)
 	lower = df.caminar < 4
@@ -67,7 +68,7 @@ def _calculate_kings_from_followup(df: DataFrame) -> Series:
 	return endstage.where(endstage == 4, regions)
 
 
-def _calculate_mitos_from_followup(df: DataFrame) -> Series:
+def _calculate_mitos_from_followup(df: pd.DataFrame) -> pd.Series:
 	walking_selfcare = (df.caminar <= 1) | (df.vestido <= 1)
 	swallowing = df.deglucion <= 1
 	communicating = (df.lenguaje <= 1) | (df.escritura <= 1)
@@ -79,7 +80,7 @@ def _calculate_mitos_from_followup(df: DataFrame) -> Series:
 	return domains
 
 
-def _add_calculated_fields(df: DataFrame) -> None:
+def _add_calculated_fields(df: pd.DataFrame) -> None:
 	df['cortar'] = None
 	df.cortar = df[df.portador_peg.fillna(False)].cortar_con_peg
 	df.cortar = df[~df.portador_peg.fillna(False)].cortar_sin_peg
@@ -94,7 +95,9 @@ def _add_calculated_fields(df: DataFrame) -> None:
 	df['alsfrs_total_c'] = df[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
 
 
-def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_data: DataFrame = None, nutr_data: DataFrame = None):
+def load_followup_data(datadir: Path = None, als_data: pd.DataFrame = None,
+                       resp_data: pd.DataFrame = None, nutr_data: pd.DataFrame = None):
+
 	als_data = als_data if als_data is not None else load_data(datadir, 'ufmn/als_data')
 	nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr_data')
 	resp_data = resp_data if resp_data is not None else load_data(datadir, 'ufmn/resp_data')
@@ -111,3 +114,22 @@ def load_followup_data(datadir: Path = None, als_data: DataFrame = None, resp_da
 	_add_calculated_fields(followups)
 
 	return followups
+
+
+def resample_followup_data(df: pd.DataFrame, start: pd.Series, freq: str):
+
+	def _resample_helper(group: pd.DataFrame):
+		assert(group.id_paciente.nunique() == 1)
+		pid = group.iloc[0].id_paciente
+		end = group.index.max()
+		begin = None
+		if pid in start.index:
+			begin = start[pid]
+		if pd.isna(begin):
+			begin = end
+		index = pd.date_range(name='fecha', start=begin, end=end, freq='D')
+		return group.reindex(index).ffill().asfreq(freq)
+
+	df = df.set_index('fecha_visita').groupby('id_paciente').apply(_resample_helper)
+	df = df.drop('id_paciente', axis=1).reset_index()
+	return df

@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from projects import Project, project
-from projects._followup import load_followup_data
+from projects._followup import load_followup_data, resample_followup_data
 from serialize import load_data
 
 
@@ -30,25 +30,6 @@ ALSFRS_COLUMNS = [
 	'alsfrs_motorg_c',
 	'alsfrs_resp_c',
 ]
-
-
-def _resample_patient_followups(df: pd.DataFrame, start: pd.Series, freq: str):
-
-	def _resample_helper(group: pd.DataFrame):
-		assert(group.id_paciente.nunique() == 1)
-		pid = group.iloc[0].id_paciente
-		end = group.index.max()
-		begin = None
-		if pid in start.index:
-			begin = start[pid]
-		if pd.isna(begin):
-			begin = end
-		index = pd.date_range(name='fecha', start=begin, end=end, freq='D')
-		return group.reindex(index).ffill().asfreq(freq)
-
-	df = df.set_index('fecha_visita').groupby('id_paciente').apply(_resample_helper)
-	df = df.drop('id_paciente', axis=1).reset_index()
-	return df
 
 
 @project('precision_als')
@@ -121,8 +102,8 @@ class PrecisionALS(Project):
 		print()
 
 	def export_data(self) -> pd.DataFrame:
-		from_dx = _resample_patient_followups(self._followups, start=self._patients.fecha_dx, freq='M')
-		from_onset = _resample_patient_followups(self._followups, start=self._patients.inicio_clinica, freq='M')
+		from_dx = resample_followup_data(self._followups, start=self._patients.fecha_dx, freq='M')
+		from_onset = resample_followup_data(self._followups, start=self._patients.inicio_clinica, freq='M')
 
 		return pd.DataFrame({
 			'site': 'Bellvitge Barcelona',
