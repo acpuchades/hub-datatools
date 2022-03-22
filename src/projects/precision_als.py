@@ -197,8 +197,10 @@ class PrecisionALS(Project):
 			'mitos_onset_y4': from_onset.groupby('id_paciente').nth(4 * 12).mitos_c,
 			'mitos_onset_y5': from_onset.groupby('id_paciente').nth(5 * 12).mitos_c,
 
+			'cpap_initiation': self._followups.groupby('id_paciente').inicio_cpap.min(),
 			'vmni_initiation': self._followups.groupby('id_paciente').inicio_vmni.min(),
 			'peg_initiation': self._followups.groupby('id_paciente').fecha_colocacion_peg.min(),
+			'food_thickener_initiation': self._followups.groupby('id_paciente').inicio_espesante.min(),
 			'oral_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_oral.min(),
 			'enteric_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
 
