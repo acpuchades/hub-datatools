@@ -24,7 +24,7 @@ def transform_opt(data: pd.Series, na_values: Iterable[str] = NA_VALUES,
 
 def transform_enum(data: pd.Series, values: Dict[str, str] = None, **kwargs) -> pd.Series:
 	if values:
-		data = data.replace(values)
+		data = data.map(values)
 	return data.astype('category')
 
 
@@ -61,19 +61,15 @@ def transform_date(data: pd.Series, yearfirst: bool = False, dayfirst: bool = Tr
 	                      format=format, exact=exact)
 
 
-def transform_number(data: pd.Series, errors: str = 'raise', **kwargs) -> pd.Series:
+def transform_number(data: pd.Series, errors: str = 'raise', downcast: str = None, **kwargs) -> pd.Series:
 	data = data.str.replace(',', '.', regex=False)
 	data = data.str.replace('..', '.', regex=False)
-	return pd.to_numeric(data, errors=errors)
+	return pd.to_numeric(data, errors=errors, downcast=downcast)
 
-
-def transform_number(data: pd.Series, errors: str = 'raise', **kwargs) -> pd.Series:
-	data = data.str.replace(',', '.', regex=False)
-	data = data.str.replace('..', '.', regex=False)
-	return pd.to_numeric(data, errors=errors)
 
 def transform_cast(type: str) -> TransformFn:
 	return lambda df, **kwargs: df.astype(type)
+
 
 def apply_transform_pipeline(df: pd.DataFrame, field: str, pipeline: Iterable[TransformFn],
                              inplace: bool | str = False, **kwargs) -> pd.DataFrame:
