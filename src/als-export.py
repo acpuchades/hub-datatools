@@ -84,6 +84,8 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 
 	parser.add_argument('-f', '--format', default='csv', choices=EXPORT_FORMATS.keys(), help='file output format to use')
 	parser.add_argument('-c', '--columns', help='output only selected data columns')
+	parser.add_argument('--query', help='select rows based on given query')
+
 	parser.add_argument('-o', '--output', type=Path, help='file or directory to output project results')
 	parser.add_argument('-r', '--replace', action='store_true', help='replace existing file if already exists')
 	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
@@ -109,8 +111,17 @@ if __name__ == '__main__':
 		else:
 			parser.error('no data sources to be exported were given')
 
+		if args.query is not None:
+			if isinstance(data, DataFrame):
+				data = data.query(args.query)
+			else:
+				print(f'{sys.argv[0]}: filtering of compound results not implemented', file=sys.stderr)
+
 		if args.columns is not None:
-			data = data[args.columns.split(',')]
+			if isinstance(data, DataFrame):
+				data = data[args.columns.split(',')]
+			else:
+				print(f'{sys.argv[0]}: subsetting of compound results not implemented', file=sys.stderr)
 
 		export_output_data(data, path=args.output,
 		                   format=args.format, replace=args.replace)
