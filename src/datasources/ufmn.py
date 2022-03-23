@@ -276,26 +276,29 @@ def _clean_resp_data(df: DataFrame) -> None:
 
 	apply_transform_pipeline(df, 'fecha_visita_fun_res', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'patologia_respiratoria_previa', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_epoc', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_asma', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_bronquiectasias', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_patologia_instersticial', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_saos', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_otra', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'tipo_patologia_respiratoria_nsnc', OPT_BOOL_PIPELINE, inplace=True)
+
 	apply_transform_pipeline(df, 'pns', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
 
 	df['pcf_below_threshold'] = df.pcf == '<60'
 	apply_transform_pipeline(df, 'pcf', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
-
 	apply_transform_pipeline(df, 'fvc_sentado', OPT_FLOAT_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fvc_estirado', OPT_FLOAT_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'pem', OPT_FLOAT_PIPELINE, inplace=True)
-
 	df['pim_below_threshold'] = df.pim == '<60'
 	apply_transform_pipeline(df, 'pim', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
-
 	apply_transform_pipeline(df, 'ph_sangre_arterial', OPT_FLOAT_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'pao2', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
 	apply_transform_pipeline(df, 'paco2', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
 	apply_transform_pipeline(df, 'hco3', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
-
 	df['sao2_media_below_threshold'] = df.sao2_media == '<90'
 	apply_transform_pipeline(df, 'sao2_media', OPT_FLOAT_PIPELINE, errors='coerce', inplace=True)
-
 	apply_transform_pipeline(df, 'ct90', OPT_FLOAT_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'odi3', OPT_FLOAT_PIPELINE, inplace=True)
 
@@ -316,6 +319,15 @@ def _clean_resp_data(df: DataFrame) -> None:
 
 	apply_transform_pipeline(df, 'cpap', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_cpap', OPT_DATE_PIPELINE, exact=False, inplace=True)
+	apply_transform_pipeline(df, 'cumplimiento_cpap', OPT_BOOL_PIPELINE, inplace=True)
+
+	apply_transform_pipeline(df, 'vmni_indicacion', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'motivo_indicacion_vmni_sintomas', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'motivo_indicacion_vmni_fvc', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'motivo_indicacion_vmni_desaturacion_nocturna', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'motivo_indicacion_vmni_hipercapnia_nocturna', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'motivo_indicacion_vmni_hipercapnia_diurna', OPT_BOOL_PIPELINE, inplace=True)
+	apply_transform_pipeline(df, 'motivo_indicacion_vmni_otros', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'portador_vmni', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'fecha_colocacion_vmni', OPT_DATE_PIPELINE, inplace=True)
 
