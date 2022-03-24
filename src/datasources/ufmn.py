@@ -126,6 +126,8 @@ def _load_patients_sql(con: Connection) -> DataFrame:
 	df.rename(columns=PATIENT_RENAME_COLUMNS, inplace=True)
 	df.sort_index(inplace=True)
 
+	df.drop('9342fe7c-d949-11e9-842a-ebf9c1d8fdac', inplace=True) # inconsistent data
+
 	return df
 
 
