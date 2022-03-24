@@ -12,7 +12,7 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory containing snapshot data')
 	parser.add_argument('-p', '--project', required=True, choices=get_project_names(), help='prepare data for selected project')
-	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
+	parser.add_argument('--quiet', action='store_true', help='supress warnings and debug messages')
 	return parser
 
 

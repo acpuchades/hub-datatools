@@ -2,6 +2,10 @@
 
 import sys
 import warnings
+from argparse import ArgumentParser
+from importlib import import_module
+from pathlib import Path
+from serialize import load_data
 
 from errors import *
 from serialize import save_data
@@ -12,7 +16,7 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	parser = ArgumentParser(prog=name)
 	parser.add_argument('-d', '--datadir', required=True, help='directory to store snapshot data')
 	parser.add_argument('-r', '--replace', action='store_true', help='replace snapshot data if already exists')
-	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
+	parser.add_argument('--quiet', action='store_true', help='supress warnings and debug messages')
 
 	for name in get_datasource_names():
 		group = parser.add_argument_group(name)
