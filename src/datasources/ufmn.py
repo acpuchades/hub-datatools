@@ -124,6 +124,8 @@ def _load_patients_sql(con: Connection) -> DataFrame:
 
 	df = patients.merge(clinical_data, left_index=True, right_index=True)
 	df.rename(columns=PATIENT_RENAME_COLUMNS, inplace=True)
+	df.sort_index(inplace=True)
+
 	return df
 
 

@@ -145,4 +145,4 @@ class PrecisionALS(Project):
 			'enteric_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
 
 			'death': self._patients.fecha_exitus,
-		}).set_index(['site', 'patient_id'])
+		})

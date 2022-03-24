@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 
@@ -80,7 +81,10 @@ def _calculate_mitos_from_followup(df: pd.DataFrame) -> pd.Series:
 	return domains
 
 
-def _add_calculated_fields(df: pd.DataFrame) -> None:
+def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[pd.DataFrame]:
+	if not inplace:
+		df = df.copy()
+
 	df['cortar'] = None
 	df.cortar = df[df.portador_peg.fillna(False)].cortar_con_peg
 	df.cortar = df[~df.portador_peg.fillna(False)].cortar_sin_peg
@@ -94,6 +98,9 @@ def _add_calculated_fields(df: pd.DataFrame) -> None:
 	df['kings_c'] = _calculate_kings_from_followup(df)
 	df['mitos_c'] = _calculate_mitos_from_followup(df)
 
+	if not inplace:
+		return df
+
 
 def load_followup_data(datadir: Path = None, als_data: pd.DataFrame = None,
                        resp_data: pd.DataFrame = None, nutr_data: pd.DataFrame = None) -> pd.DataFrame:
@@ -104,15 +111,13 @@ def load_followup_data(datadir: Path = None, als_data: pd.DataFrame = None,
 
 	followups = als_data.merge(nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
 	followups = followups.merge(resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
-	followups[FFILL_COLUMNS] = followups.groupby('id_paciente')[FFILL_COLUMNS].ffill()
 	followups.dropna(subset=['id_paciente', 'fecha_visita'], inplace=True)
 
 	followups = (followups.set_index(['id_paciente', 'fecha_visita'])
-	                      .groupby(level=[0, 1]).bfill().reset_index()
+	                      .groupby(level=[0,1]).bfill().reset_index()
 	                      .drop_duplicates(['id_paciente', 'fecha_visita']))
 
-	_add_calculated_fields(followups)
-
+	_add_calculated_fields(followups, inplace=True)
 	return followups
 
 
