@@ -6,73 +6,71 @@ from argparse import ArgumentParser
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from pandas import DataFrame
+from pandas import DataFrame, ExcelWriter
 
 from errors import *
 from serialize import load_data
 from projects import get_project_class, get_project_names, load_project_modules
 
 
-EXPORT_FORMATS = {
-	  'csv': lambda df, path: df.to_csv(path),
-	'excel': lambda df, path: df.to_excel(path),
-}
-
 FORMAT_SUFFIXES = {
-	  'csv': '.csv',
+	'csv': '.csv',
 	'excel': '.xlsx',
 }
 
 SUFFIX_FORMATS = {
-	 '.csv': 'csv',
-	 '.xls': 'excel',
+	'.csv': 'csv',
+	'.xls': 'excel',
 	'.xlsx': 'excel',
 }
 
 
-def output_file_format(path: Path, format: Optional[str]) -> Optional[str]:
-	if path.suffix != '':
-		return SUFFIX_FORMATS.get(path.suffix)
-
-	if format is not None:
-		return format
-
-	return None
-
-
-def output_file_path(path: Path, format: str) -> Path:
-	if path.suffix != '':
-		return path
-
-	suffix = FORMAT_SUFFIXES.get(format)
-	if suffix is not None:
-		return path.with_suffix(suffix)
-
-	return path
+def _export_data_csv(data: DataFrame | Dict[str, DataFrame], path: Path, replace: bool = False, **kwargs: Dict[str, Any]) -> None:
+	if isinstance(data, dict):
+		for key, child in data.items():
+			childpath = path.joinpath(key)
+			_export_data_csv(child, childpath)
+	else:
+		path.parent.mkdir(exist_ok=True)
+		data.to_csv(path, **kwargs)
 
 
-def export_data(data: DataFrame, path: Path, format: Optional[str], replace: bool = False) -> None:
-	format = output_file_format(path, format)
-	path = output_file_path(path, format)
+def _export_data_excel(data: DataFrame | Dict[str, DataFrame], path: Path, replace: bool = False, **kwargs: Dict[str, Any]) -> None:
+	path.parent.mkdir(exist_ok=True)
+	if isinstance(data, dict):
+		if_sheet_exists = 'replace' if replace else 'error'
+		try:
+			with ExcelWriter(path, if_sheet_exists=if_sheet_exists) as writer:
+				for key, child in data.items():
+					child.to_excel(writer, sheet_name=key)
+		except ValueError:
+			raise FileExistsError('output excel tab already exists')
+	else:
+		data.to_excel(path, **kwargs)
+
+
+EXPORT_FORMATS = {
+	'csv': _export_data_csv,
+	'excel': _export_data_excel,
+}
+
+DEFAULT_FORMAT = 'csv'
+
+
+def export_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: str,
+                replace: bool = False, **kwargs: Dict[str, Any]) -> None:
+
+
+	if path.suffix is None:
+		path = path.with_suffix(FORMAT_SUFFIXES.get(format))
 
 	if path.exists() and not replace:
-		raise FileExistsError(path)
+		raise FileExistsError('output file already exists')
 
-	export_fn = EXPORT_FORMATS.get(format)
-	if export_fn:
-		export_fn(data, path)
-	else:
-		raise ValueError('unsupported output format')
-
-
-def export_output_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: Optional[str], **kwargs: Dict[str, Any]) -> None:
-	if isinstance(data, dict):
-		for key, df in data.items():
-			filepath = path.joinpath(key)
-			filepath.parent.mkdir(exist_ok=True)
-			export_data(df, filepath, format=format, **kwargs)
-	else:
-		export_data(data, path, format, **kwargs)
+	exportfn = EXPORT_FORMATS.get(format)
+	if exportfn is None:
+		raise NotImplementedError('unsupported output file format')
+	exportfn(data, path, replace, **kwargs)
 
 
 def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
@@ -83,13 +81,13 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 	group.add_argument('-s', '--source', help='output data from selected data source')
 	group.add_argument('-p', '--project', choices=get_project_names(), help='output data for selected project')
 
-	parser.add_argument('-f', '--format', default='csv', choices=EXPORT_FORMATS.keys(), help='file output format to use')
+	parser.add_argument('-f', '--format', choices=EXPORT_FORMATS.keys(), help='file output format to use')
 	parser.add_argument('-c', '--columns', help='output only selected data columns')
-	parser.add_argument('--query', help='select rows based on given query')
+	parser.add_argument('-q', '--query', help='select rows based on given query')
 
 	parser.add_argument('-o', '--output', type=Path, help='file or directory to output project results')
 	parser.add_argument('-r', '--replace', action='store_true', help='replace existing file if already exists')
-	parser.add_argument('-q', '--quiet', action='store_true', help='supress warnings and debug messages')
+	parser.add_argument('--quiet', action='store_true', help='supress warnings and debug messages')
 	return parser
 
 
@@ -124,6 +122,16 @@ if __name__ == '__main__':
 			else:
 				raise NotImplementedError('subsetting of compound results not implemented')
 
+		format = args.format
+
+		if format is None:
+			suffix = args.output.suffix
+			format = SUFFIX_FORMATS.get(suffix)
+
+		if format is None:
+			format = DEFAULT_FORMAT
+
+		export_data(data, args.output, format=format, replace=args.replace)
 
 	except FileNotFoundError as e:
 		print(f'{sys.argv[0]}: {e}', file=sys.stderr)
