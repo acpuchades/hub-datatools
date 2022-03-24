@@ -4,6 +4,7 @@ import sys
 import warnings
 from argparse import ArgumentParser
 
+from errors import *
 from projects import get_project_class, get_project_names, load_project_modules
 
 
@@ -29,5 +30,6 @@ if __name__ == '__main__':
 		project = projectclass(args.datadir)
 		project.describe()
 
-	except NotImplementedError:
-		print(f'{sys.argv[0]}: project "{args.project}" does not implement describe', file=sys.stderr)
+	except NotImplementedError as e:
+		print(f'{sys.argv[0]}: {e}', file=sys.stderr)
+		sys.error(ExitCode.NotImplemented.value)

@@ -3,12 +3,8 @@
 import sys
 import warnings
 
-from argparse    import ArgumentParser
-from importlib   import import_module
-from pathlib     import Path
-from serialize   import load_data
-
-from serialize   import save_data
+from errors import *
+from serialize import save_data
 from datasources import DataSource, get_datasource_class, get_datasource_names, load_datasource_modules
 
 
@@ -52,3 +48,4 @@ if __name__ == '__main__':
 
 	except FileExistsError:
 		print(f'{sys.argv[0]}: data file already exists', file=sys.stderr)
+		sys.exit(ExitCode.AlreadyExists.value)

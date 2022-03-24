@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 
 from pandas import DataFrame
 
+from errors import *
 from serialize import load_data
 from projects import get_project_class, get_project_names, load_project_modules
 
@@ -115,20 +116,23 @@ if __name__ == '__main__':
 			if isinstance(data, DataFrame):
 				data = data.query(args.query)
 			else:
-				print(f'{sys.argv[0]}: filtering of compound results not implemented', file=sys.stderr)
+				raise NotImplementedError('filtering of compound results not implemented')
 
 		if args.columns is not None:
 			if isinstance(data, DataFrame):
 				data = data[args.columns.split(',')]
 			else:
-				print(f'{sys.argv[0]}: subsetting of compound results not implemented', file=sys.stderr)
-
-		export_output_data(data, path=args.output,
-		                   format=args.format, replace=args.replace)
+				raise NotImplementedError('subsetting of compound results not implemented')
 
 
-	except FileExistsError:
-		print(f'{sys.argv[0]}: output file already exists', file=sys.stderr)
+	except FileNotFoundError as e:
+		print(f'{sys.argv[0]}: {e}', file=sys.stderr)
+		sys.exit(ExitCode.NotFound.value)
 
-	except FileNotFoundError:
-		print(f'{sys.argv[0]}: source file not found', file=sys.stderr)
+	except NotImplementedError as e:
+		print(f'{sys.argv[0]}: {e}', file=sys.stderr)
+		sys.exit(ExitCode.NotImplemented.value)
+
+	except FileExistsError as e:
+		print(f'{sys.argv[0]}: {e}', file=sys.stderr)
+		sys.exit(ExitCode.AlreadyExists.value)
