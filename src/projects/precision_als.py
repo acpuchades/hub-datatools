@@ -44,9 +44,8 @@ class PrecisionALS(Project):
 		self._hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
 		self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
 
-		followups = self._followups = patients.merge(load_followup_data(datadir), on='id_paciente')
-		self._from_dx = resample_followup_data(followups, start=patients.fecha_dx, freq='M')
-		self._from_onset = resample_followup_data(followups, start=patients.inicio_clinica, freq='M')
+		followups = load_followup_data(datadir)
+		self._followups = self._patients.merge(followups, on='id_paciente')
 
 	def describe(self) -> None:
 		print()
@@ -119,6 +118,7 @@ class PrecisionALS(Project):
 
 			'clinical_onset': self._patients.inicio_clinica,
 			'als_dx': self._patients.fecha_dx,
+			'last_followup': self._followups.groupby('id_paciente').fecha_visita.max(),
 
 			'riluzole_received': self._patients.riluzol,
 			'riluzole_initiation': self._patients.inicio_riluzol,
@@ -134,51 +134,6 @@ class PrecisionALS(Project):
 			'mitos_2': self._followups[self._followups.mitos_c == 2].groupby('id_paciente').fecha_visita.min(),
 			'mitos_3': self._followups[self._followups.mitos_c == 3].groupby('id_paciente').fecha_visita.min(),
 			'mitos_4': self._followups[self._followups.mitos_c == 4].groupby('id_paciente').fecha_visita.min(),
-
-			'alsfrs_onset_m3': self._from_onset.groupby('id_paciente').nth(3).alsfrs_total_c,
-			'alsfrs_onset_y1': self._from_onset.groupby('id_paciente').nth(1 * 12).alsfrs_total_c,
-			'alsfrs_onset_y2': self._from_onset.groupby('id_paciente').nth(2 * 12).alsfrs_total_c,
-			'alsfrs_onset_y3': self._from_onset.groupby('id_paciente').nth(3 * 12).alsfrs_total_c,
-			'alsfrs_onset_y4': self._from_onset.groupby('id_paciente').nth(4 * 12).alsfrs_total_c,
-			'alsfrs_onset_y5': self._from_onset.groupby('id_paciente').nth(5 * 12).alsfrs_total_c,
-
-			'alsfrs_dx': self._from_dx.groupby('id_paciente').nth(0).alsfrs_total_c,
-			'alsfrs_dx_m3': self._from_dx.groupby('id_paciente').nth(3).alsfrs_total_c,
-			'alsfrs_dx_y1': self._from_dx.groupby('id_paciente').nth(1 * 12).alsfrs_total_c,
-			'alsfrs_dx_y2': self._from_dx.groupby('id_paciente').nth(2 * 12).alsfrs_total_c,
-			'alsfrs_dx_y3': self._from_dx.groupby('id_paciente').nth(3 * 12).alsfrs_total_c,
-			'alsfrs_dx_y4': self._from_dx.groupby('id_paciente').nth(4 * 12).alsfrs_total_c,
-			'alsfrs_dx_y5': self._from_dx.groupby('id_paciente').nth(5 * 12).alsfrs_total_c,
-
-			'kings_onset_m3': self._from_onset.groupby('id_paciente').nth(3).kings_c,
-			'kings_onset_y1': self._from_onset.groupby('id_paciente').nth(1 * 12).kings_c,
-			'kings_onset_y2': self._from_onset.groupby('id_paciente').nth(2 * 12).kings_c,
-			'kings_onset_y3': self._from_onset.groupby('id_paciente').nth(3 * 12).kings_c,
-			'kings_onset_y4': self._from_onset.groupby('id_paciente').nth(4 * 12).kings_c,
-			'kings_onset_y5': self._from_onset.groupby('id_paciente').nth(5 * 12).kings_c,
-
-			'kings_dx': self._from_dx.groupby('id_paciente').nth(0).kings_c,
-			'kings_dx_m3': self._from_dx.groupby('id_paciente').nth(3).kings_c,
-			'kings_dx_y1': self._from_dx.groupby('id_paciente').nth(1 * 12).kings_c,
-			'kings_dx_y2': self._from_dx.groupby('id_paciente').nth(2 * 12).kings_c,
-			'kings_dx_y3': self._from_dx.groupby('id_paciente').nth(3 * 12).kings_c,
-			'kings_dx_y4': self._from_dx.groupby('id_paciente').nth(4 * 12).kings_c,
-			'kings_dx_y5': self._from_dx.groupby('id_paciente').nth(5 * 12).kings_c,
-
-			'mitos_onset_m3': self._from_onset.groupby('id_paciente').nth(3).mitos_c,
-			'mitos_onset_y1': self._from_onset.groupby('id_paciente').nth(1 * 12).mitos_c,
-			'mitos_onset_y2': self._from_onset.groupby('id_paciente').nth(2 * 12).mitos_c,
-			'mitos_onset_y3': self._from_onset.groupby('id_paciente').nth(3 * 12).mitos_c,
-			'mitos_onset_y4': self._from_onset.groupby('id_paciente').nth(4 * 12).mitos_c,
-			'mitos_onset_y5': self._from_onset.groupby('id_paciente').nth(5 * 12).mitos_c,
-
-			'mitos_dx': self._from_dx.groupby('id_paciente').nth(0).mitos_c,
-			'mitos_dx_m3': self._from_dx.groupby('id_paciente').nth(3).mitos_c,
-			'mitos_dx_y1': self._from_dx.groupby('id_paciente').nth(1 * 12).mitos_c,
-			'mitos_dx_y2': self._from_dx.groupby('id_paciente').nth(2 * 12).mitos_c,
-			'mitos_dx_y3': self._from_dx.groupby('id_paciente').nth(3 * 12).mitos_c,
-			'mitos_dx_y4': self._from_dx.groupby('id_paciente').nth(4 * 12).mitos_c,
-			'mitos_dx_y5': self._from_dx.groupby('id_paciente').nth(5 * 12).mitos_c,
 
 			'walking_aids': self._followups[self._followups.caminar <= 2].groupby('id_paciente').fecha_visita.min(),
 			'cpap_initiation': self._followups.groupby('id_paciente').inicio_cpap.min(),
