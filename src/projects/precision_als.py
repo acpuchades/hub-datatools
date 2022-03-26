@@ -123,13 +123,11 @@ class PrecisionALS(Project):
 			'riluzole_received': self._patients.riluzol,
 			'riluzole_initiation': self._patients.inicio_riluzol,
 
-			'kings_0': self._followups[self._followups.kings_c == 0].groupby('id_paciente').fecha_visita.min(),
 			'kings_1': self._followups[self._followups.kings_c == 1].groupby('id_paciente').fecha_visita.min(),
 			'kings_2': self._followups[self._followups.kings_c == 2].groupby('id_paciente').fecha_visita.min(),
 			'kings_3': self._followups[self._followups.kings_c == 3].groupby('id_paciente').fecha_visita.min(),
 			'kings_4': self._followups[self._followups.kings_c == 4].groupby('id_paciente').fecha_visita.min(),
 
-			'mitos_0': self._followups[self._followups.mitos_c == 0].groupby('id_paciente').fecha_visita.min(),
 			'mitos_1': self._followups[self._followups.mitos_c == 1].groupby('id_paciente').fecha_visita.min(),
 			'mitos_2': self._followups[self._followups.mitos_c == 2].groupby('id_paciente').fecha_visita.min(),
 			'mitos_3': self._followups[self._followups.mitos_c == 3].groupby('id_paciente').fecha_visita.min(),
@@ -137,12 +135,12 @@ class PrecisionALS(Project):
 
 			'walking_aids': self._followups[self._followups.caminar <= 2].groupby('id_paciente').fecha_visita.min(),
 			'cpap_initiation': self._followups.groupby('id_paciente').inicio_cpap.min(),
-			'nivs_initiation': self._followups.groupby('id_paciente').inicio_vmni.min(),
-			'ivs_initiation': self._followups[self._followups.insuf_resp == 0].groupby('id_paciente').fecha_visita.min(),
-			'peg_initiation': self._followups.groupby('id_paciente').fecha_colocacion_peg.min(),
-			'food_thickener_initiation': self._followups.groupby('id_paciente').inicio_espesante.min(),
-			'oral_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_oral.min(),
-			'enteric_supl_initiation': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
+			'niv_support': self._followups.groupby('id_paciente').inicio_vmni.min(),
+			'imv_support': self._followups[self._followups.insuf_resp == 0].groupby('id_paciente').fecha_visita.min(),
+			'peg_colocation': self._followups.groupby('id_paciente').fecha_colocacion_peg.min(),
+			'food_thickener_start': self._followups.groupby('id_paciente').inicio_espesante.min(),
+			'oral_supl_start': self._followups.groupby('id_paciente').inicio_supl_oral.min(),
+			'enteric_supl_start': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
 
 			'death': self._patients.fecha_exitus,
 		})
