@@ -1,11 +1,12 @@
 from pathlib import Path
 
-from pandas import DataFrame
+from pandas import DataFrame, Series, Timedelta
 
 from projects import Project, project
 from projects._followup import load_followup_data, resample_followup_data
 from serialize import load_data
 
+ALSFRS_MAX_VALUE = 4 * 12
 
 GENE_FIELDS = {
 	 'C9orf72': 'estado_c9',
@@ -31,6 +32,19 @@ ALSFRS_COLUMNS = [
 	'alsfrs_resp_c',
 ]
 
+def _calculate_alsfrs_decline_rate(alsfrs_data: DataFrame) -> Series:
+	first_followup = alsfrs_data.groupby('id_paciente').nth(0)
+	last_followup = alsfrs_data.groupby('id_paciente').nth(-1)
+
+	dx_delta = first_followup.fecha_visita - first_followup.inicio_clinica
+	duration = last_followup.fecha_visita - first_followup.fecha_visita
+
+	alsfrs_first = first_followup.alsfrs_total.where(duration > Timedelta(0), ALSFRS_MAX_VALUE)
+	alsfrs_last = last_followup.alsfrs_total
+	progression = alsfrs_last - alsfrs_first
+
+	duration.mask(duration == Timedelta(0), dx_delta, inplace=True)
+	return -progression / (duration.dt.days / 30)
 
 @project('precision_als')
 class PrecisionALS(Project):
@@ -45,7 +59,13 @@ class PrecisionALS(Project):
 		self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
 
 		followups = load_followup_data(datadir)
-		self._followups = self._patients.merge(followups, on='id_paciente')
+		self._followups = followups = self._patients.merge(followups, on='id_paciente')
+
+		alsfrs_data = followups[followups.alsfrs_total.notna()]
+		followup_start = alsfrs_data.groupby('id_paciente').fecha_visita.min()
+		self._from_dx = resample_followup_data(alsfrs_data, patients.fecha_dx, freq='3M')
+		self._from_followup_start = resample_followup_data(alsfrs_data, followup_start, freq='3M')
+
 
 	def describe(self) -> None:
 		print()
@@ -104,6 +124,7 @@ class PrecisionALS(Project):
 		print(f' > Patients with level of assistance data available: (pending)')
 		print()
 
+
 	def export_data(self) -> DataFrame:
 		return DataFrame({
 			'site': 'Bellvitge Barcelona',
@@ -118,10 +139,43 @@ class PrecisionALS(Project):
 
 			'clinical_onset': self._patients.inicio_clinica,
 			'als_dx': self._patients.fecha_dx,
+
+			'n_followups': self._followups.value_counts('id_paciente').astype('Int64'),
+			'first_followup': self._followups.groupby('id_paciente').fecha_visita.min(),
 			'last_followup': self._followups.groupby('id_paciente').fecha_visita.max(),
 
 			'riluzole_received': self._patients.riluzol,
 			'riluzole_initiation': self._patients.inicio_riluzol,
+
+			'alsfrs_dx': self._from_dx.groupby('id_paciente').nth(0).alsfrs_total,
+			'alsfrs_dx_m3': self._from_dx.groupby('id_paciente').nth(1).alsfrs_total,
+			'alsfrs_dx_y1': self._from_dx.groupby('id_paciente').nth(1 * 4).alsfrs_total,
+			'alsfrs_dx_y2': self._from_dx.groupby('id_paciente').nth(2 * 4).alsfrs_total,
+			'alsfrs_dx_y3': self._from_dx.groupby('id_paciente').nth(3 * 4).alsfrs_total,
+			'alsfrs_dx_y4': self._from_dx.groupby('id_paciente').nth(4 * 4).alsfrs_total,
+			'alsfrs_dx_y5': self._from_dx.groupby('id_paciente').nth(5 * 4).alsfrs_total,
+
+			'alsfrs_followup_start': self._from_followup_start.groupby('id_paciente').nth(0).alsfrs_total,
+			'alsfrs_followup_m3': self._from_followup_start.groupby('id_paciente').nth(1).alsfrs_total,
+			'alsfrs_followup_m6': self._from_followup_start.groupby('id_paciente').nth(2).alsfrs_total,
+			'alsfrs_followup_m9': self._from_followup_start.groupby('id_paciente').nth(3).alsfrs_total,
+			'alsfrs_followup_m12': self._from_followup_start.groupby('id_paciente').nth(4).alsfrs_total,
+			'alsfrs_followup_m15': self._from_followup_start.groupby('id_paciente').nth(5).alsfrs_total,
+			'alsfrs_followup_m18': self._from_followup_start.groupby('id_paciente').nth(6).alsfrs_total,
+			'alsfrs_followup_m21': self._from_followup_start.groupby('id_paciente').nth(7).alsfrs_total,
+			'alsfrs_followup_m24': self._from_followup_start.groupby('id_paciente').nth(8).alsfrs_total,
+			'alsfrs_followup_m27': self._from_followup_start.groupby('id_paciente').nth(9).alsfrs_total,
+			'alsfrs_followup_m30': self._from_followup_start.groupby('id_paciente').nth(10).alsfrs_total,
+			'alsfrs_followup_m33': self._from_followup_start.groupby('id_paciente').nth(11).alsfrs_total,
+			'alsfrs_followup_m36': self._from_followup_start.groupby('id_paciente').nth(12).alsfrs_total,
+			'alsfrs_followup_m39': self._from_followup_start.groupby('id_paciente').nth(13).alsfrs_total,
+			'alsfrs_followup_m42': self._from_followup_start.groupby('id_paciente').nth(14).alsfrs_total,
+			'alsfrs_followup_m45': self._from_followup_start.groupby('id_paciente').nth(15).alsfrs_total,
+			'alsfrs_followup_m48': self._from_followup_start.groupby('id_paciente').nth(16).alsfrs_total,
+			'alsfrs_followup_m51': self._from_followup_start.groupby('id_paciente').nth(17).alsfrs_total,
+			'alsfrs_followup_m54': self._from_followup_start.groupby('id_paciente').nth(18).alsfrs_total,
+			'alsfrs_followup_m57': self._from_followup_start.groupby('id_paciente').nth(19).alsfrs_total,
+			'alsfrs_followup_m60': self._from_followup_start.groupby('id_paciente').nth(20).alsfrs_total,
 
 			'kings_1': self._followups[self._followups.kings_c == 1].groupby('id_paciente').fecha_visita.min(),
 			'kings_2': self._followups[self._followups.kings_c == 2].groupby('id_paciente').fecha_visita.min(),
