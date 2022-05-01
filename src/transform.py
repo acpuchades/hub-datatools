@@ -54,11 +54,14 @@ def transform_fix_date_typos(data: pd.Series, **kwargs) -> pd.Series:
 	data = data.str.replace(r'^(\d{1,2})/(\d{1,2})(\d{2,4})$', r'\1/\2/\3', regex=True)
 	return data
 
-
-def transform_date(data: pd.Series, yearfirst: bool = False, dayfirst: bool = True,
-                   format: str = None, exact: bool = True, **kwargs):
+def transform_datetime(data: pd.Series, yearfirst: bool = False, dayfirst: bool = True,
+                      format: str = None, exact: bool = True, **kwargs):
 	return pd.to_datetime(data, yearfirst=yearfirst, dayfirst=dayfirst,
 	                      format=format, exact=exact)
+
+
+def transform_date(data: pd.Series, **kwargs):
+	return transform_datetime(data, **kwargs).dt.date
 
 
 def transform_number(data: pd.Series, errors: str = 'raise', downcast: str = None, **kwargs) -> pd.Series:
@@ -83,9 +86,10 @@ def apply_transform_pipeline(df: pd.DataFrame, field: str, pipeline: Iterable[Tr
 	return data
 
 
-OPT_BOOL_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_bool)
-OPT_DATE_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_fix_date_typos, transform_date)
-OPT_ENUM_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_enum)
-OPT_NUMBER_PIPELINE = (transform_strip, transform_fix_common_typos, transform_opt, transform_number)
-OPT_INT_PIPELINE    = (transform_strip, transform_fix_common_typos, transform_opt, transform_number, transform_cast('Int64'))
-OPT_FLOAT_PIPELINE  = (transform_strip, transform_fix_common_typos, transform_opt, transform_number, transform_cast('Float64'))
+OPT_BOOL_PIPELINE     = (transform_strip, transform_fix_common_typos, transform_opt, transform_bool)
+OPT_DATE_PIPELINE = (transform_strip, transform_fix_common_typos, transform_opt, transform_fix_date_typos, transform_date)
+OPT_DATETIME_PIPELINE = (transform_strip, transform_fix_common_typos, transform_opt, transform_fix_date_typos, transform_datetime)
+OPT_ENUM_PIPELINE     = (transform_strip, transform_fix_common_typos, transform_opt, transform_enum)
+OPT_NUMBER_PIPELINE   = (transform_strip, transform_fix_common_typos, transform_opt, transform_number)
+OPT_INT_PIPELINE      = (transform_strip, transform_fix_common_typos, transform_opt, transform_number, transform_cast('Int64'))
+OPT_FLOAT_PIPELINE    = (transform_strip, transform_fix_common_typos, transform_opt, transform_number, transform_cast('Float64'))
