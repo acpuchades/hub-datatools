@@ -29,8 +29,12 @@ def _export_data_csv(data: DataFrame | Dict[str, DataFrame], path: Path, replace
 	if isinstance(data, dict):
 		for key, child in data.items():
 			childpath = path.joinpath(key)
-			_export_data_csv(child, childpath)
+			_export_data_csv(child, childpath, replace)
 	else:
+		path = path.with_suffix('.csv')
+		if path.exists() and not replace:
+			raise FileExistsError('output file already exists')
+
 		path.parent.mkdir(exist_ok=True)
 		data.to_csv(path, **kwargs)
 
@@ -38,9 +42,8 @@ def _export_data_csv(data: DataFrame | Dict[str, DataFrame], path: Path, replace
 def _export_data_excel(data: DataFrame | Dict[str, DataFrame], path: Path, replace: bool = False, **kwargs: Dict[str, Any]) -> None:
 	path.parent.mkdir(exist_ok=True)
 	if isinstance(data, dict):
-		if_sheet_exists = 'replace' if replace else 'error'
 		try:
-			with ExcelWriter(path, if_sheet_exists=if_sheet_exists) as writer:
+			with ExcelWriter(path) as writer:
 				for key, child in data.items():
 					child.to_excel(writer, sheet_name=key)
 		except ValueError:
@@ -59,7 +62,6 @@ DEFAULT_FORMAT = 'csv'
 
 def export_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: str,
                 replace: bool = False, **kwargs: Dict[str, Any]) -> None:
-
 
 	if path.suffix is None:
 		path = path.with_suffix(FORMAT_SUFFIXES.get(format))
