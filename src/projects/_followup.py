@@ -40,13 +40,13 @@ ALSFRS_BULBAR_COLUMNS = [
 	'deglucion',
 ]
 
-ALSFRS_MOTORF_COLUMNS = [
+ALSFRS_FINE_MOTOR_COLUMNS = [
 	'escritura',
 	'cortar',
 	'vestido',
 ]
 
-ALSFRS_MOTORG_COLUMNS = [
+ALSFRS_GROSS_MOTOR_COLUMNS = [
 	'cama',
 	'caminar',
 	'subir_escaleras',
@@ -90,8 +90,8 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
 	df.cortar = df[~df.portador_peg.fillna(False)].cortar_sin_peg
 
 	df['alsfrs_bulbar_c'] = df[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-	df['alsfrs_motorf_c'] = df[ALSFRS_MOTORF_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-	df['alsfrs_motorg_c'] = df[ALSFRS_MOTORG_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	df['alsfrs_fine_motor_c'] = df[ALSFRS_FINE_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+	df['alsfrs_gross_motor_c'] = df[ALSFRS_GROSS_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
 	df['alsfrs_resp_c'] = df[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
 	df['alsfrs_total_c'] = df[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
 
@@ -102,14 +102,14 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
 		return df
 
 
-def load_followup_data(datadir: Path = None, als_data: pd.DataFrame = None,
+def load_followup_data(datadir: Path = None, alsfrs_data: pd.DataFrame = None,
                        resp_data: pd.DataFrame = None, nutr_data: pd.DataFrame = None) -> pd.DataFrame:
 
-	als_data = als_data if als_data is not None else load_data(datadir, 'ufmn/als_data')
-	nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr_data')
-	resp_data = resp_data if resp_data is not None else load_data(datadir, 'ufmn/resp_data')
+	alsfrs_data = alsfrs_data if alsfrs_data is not None else load_data(datadir, 'ufmn/alsfrs')
+	nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr')
+	resp_data = resp_data if resp_data is not None else load_data(datadir, 'ufmn/resp')
 
-	followups = als_data.merge(nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
+	followups = alsfrs_data.merge(nutr_data, how='outer', on=['id_paciente', 'fecha_visita'])
 	followups = followups.merge(resp_data, how='outer', on=['id_paciente', 'fecha_visita'])
 	followups.dropna(subset=['id_paciente', 'fecha_visita'], inplace=True)
 

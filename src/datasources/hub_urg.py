@@ -84,6 +84,6 @@ class HUBUrg(DataSource):
 		df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
 
 		return {
-		     'hub_urg/episodes': _load_episodes_from_df(df),
-		    'hub_urg/diagnoses': _load_diagnoses_from_df(df),
+			'hub_urg/episodes': _load_episodes_from_df(df),
+			'hub_urg/diagnoses': _load_diagnoses_from_df(df),
 		}

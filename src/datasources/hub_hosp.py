@@ -48,7 +48,7 @@ def _load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
 	df[EPISODE_END_COLUMN] = pd.to_datetime(df[EPISODE_END_COLUMN])
 	df.rename(columns=EPISODE_COLUMNS, inplace=True)
 	df.inicio_episodio = pd.to_datetime(df.inicio_episodio)
-	df.fin_episodio = pd.to_datetime
+	df.fin_episodio = pd.to_datetime(df.fin_episodio)
 	df.set_index('id_episodio', inplace=True)
 	df.dropna(how='all', inplace=True)
 	return df
@@ -84,6 +84,6 @@ class HUBHosp(DataSource):
 		df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()
 
 		return {
-		     'hub_hosp/episodes': _load_episodes_from_df(df),
-		    'hub_hosp/diagnoses': _load_diagnoses_from_df(df),
+			'hub_hosp/episodes': _load_episodes_from_df(df),
+			'hub_hosp/diagnoses': _load_diagnoses_from_df(df),
 		}

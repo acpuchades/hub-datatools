@@ -54,9 +54,9 @@ ALS_PHENOTYPE_CATEGORIES = {
 COGNITIVE_DX_CATEGORIES = {
 	'Demencia frontotemporal': 'DFT',
 	'Demencia tipo alzheimer': 'DTA',
-	'Deterioro Cognitivo Leve cognitivo (DCL cognitivo)': 'DCL-Cognitiva',
+	'Deterioro Cognitivo Leve cognitivo (DCL cognitivo)': 'DCL-Cognitivo',
 	'Deterioro Cognitivo Leve conductual (DCL conductual)': 'DCL-Conductual',
-	'Deterioro Cognitivo Leve mixto (DCL mixto)': 'DCL-Mixta',
+	'Deterioro Cognitivo Leve mixto (DCL mixto)': 'DCL-Mixto',
 	'Normal': 'Normal',
 	'Otros': 'Otro',
 }
@@ -100,7 +100,7 @@ RESP_DATA_RENAME_COLUMNS = {
 	'fecha_cpap': 'inicio_cpap',
 	'fecha_colocacion_vmni': 'inicio_vmni',
 	'fecha_visita_fun_res': 'fecha_visita',
-	'sas_apneas_no_claramanete_obstructivas': 'sas_no_claramente_obstructivas',
+	'sas_apneas_no_claramanete_obstructivas': 'sas_apneas_no_claramente_obstructivas',
 	'sintomas_sintomas_de_hipoventilacion_nocturna': 'sintomas_hipoventilacion_nocturna',
 	'motivo_retirada_vmi_intolerancia': 'motivo_retirada_vmni_intolerancia',
 	'motivo_retirada_vmi_no_cumplimiento': 'motivo_retirada_vmni_incumplimiento',
@@ -131,12 +131,12 @@ def _load_patients_sql(con: Connection) -> DataFrame:
 	return df
 
 
-def _load_als_data_sql(con: Connection) -> DataFrame:
+def _load_alsfrs_data_sql(con: Connection) -> DataFrame:
 	als_data = pd.read_sql_query(f'SELECT * FROM {ALS_DATA_TABLE}', con)
 	als_data.drop(columns=['created_datetime', 'updated_datetime'], inplace=True)
 	als_data.rename(columns={'id': 'id_visita'}, inplace=True)
 	als_data.set_index('id_visita', inplace=True)
-	_clean_als_data(als_data)
+	_clean_alsfrs_data(als_data)
 	als_data.rename(columns=ALS_DATA_RENAME_COLUMNS, inplace=True)
 	return als_data
 
@@ -211,7 +211,7 @@ def _clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_inicio_riluzol', OPT_DATE_PIPELINE, inplace=True)
 
 
-def _clean_als_data(df: DataFrame) -> None:
+def _clean_alsfrs_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_visita_esc_val_ela', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'lenguaje', OPT_INT_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'salivacion', OPT_INT_PIPELINE, inplace=True)
@@ -368,8 +368,8 @@ class UFMN(DataSource):
 	def load_data(self, args: Namespace) -> Dict[str, DataFrame]:
 		with sqlite3.connect(f'file:{args.ufmn}?mode=ro', uri=True) as con:
 			return {
-				 'ufmn/patients': _load_patients_sql(con),
-				 'ufmn/als_data': _load_als_data_sql(con),
-				'ufmn/resp_data': _load_resp_data_sql(con),
-				'ufmn/nutr_data': _load_nutr_data_sql(con),
+				'ufmn/patients': _load_patients_sql(con),
+				'ufmn/alsfrs': _load_alsfrs_data_sql(con),
+				'ufmn/resp': _load_resp_data_sql(con),
+				'ufmn/nutr': _load_nutr_data_sql(con),
 			}

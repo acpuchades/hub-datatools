@@ -1,10 +1,12 @@
 from pathlib import Path
+from typing import Dict
 
 from pandas import DataFrame, Series, Timedelta
 
 from projects import Project, project
-from projects._followup import load_followup_data, resample_followup_data
+from projects._followup import load_followup_data
 from serialize import load_data
+
 
 ALSFRS_MAX_VALUE = 4 * 12
 
@@ -24,169 +26,60 @@ SEX_CATEGORIES = {
 	 'Mujer': 'Female'
 }
 
-ALSFRS_COLUMNS = [
-	'alsfrs_total_c',
-	'alsfrs_bulbar_c',
-	'alsfrs_motorf_c',
-	'alsfrs_motorg_c',
-	'alsfrs_resp_c',
-]
+SMOKING_CATEGORIES = {
+	  'Fumador': 'Active',
+	'Exfumador': 'Ceased',
+	    'Nunca': 'Never',
+}
 
-def _calculate_alsfrs_decline_rate(alsfrs_data: DataFrame) -> Series:
-	first_followup = alsfrs_data.groupby('id_paciente').nth(0)
-	last_followup = alsfrs_data.groupby('id_paciente').nth(-1)
+HOSP_DISCHARGE_TYPE_CATEGORIES = {
+	'A DOMICILI': 'Planned',
+	'RESID.SOCIAL': 'Planned',
+	'ICO': 'Transfer',
+	'ALTA CONT.CENTR': 'Transfer',
+	'AGUTS/PSIQUIATRIC': 'Transfer',
+	'H. DOMICILARIA': 'Home Hospitalization',
+	'SOCI SANITARI': 'Rehabilitation',
+	'EXITUS': 'Exitus',
+}
 
-	dx_delta = first_followup.fecha_visita - first_followup.inicio_clinica
-	duration = last_followup.fecha_visita - first_followup.fecha_visita
+URG_DISCHARGE_TYPE_CATEGORIES = {
+	'ALTA VOLUNTARIA': 'DAMA',
+	'FUGIDA/ABANDONAMENT': 'Abscond',
+	'ALTA A DOMICILI': 'Planned',
+	'REMISIO A ATENCIO PRIMARIA': 'Planned',
+	'DERIVACIO A UN ALTRE CENTRE': 'Transfer',
+	'INGRES A L\'HOSPITAL': 'Admitted',
+	'EXITUS': 'Exitus',
+}
 
-	alsfrs_first = first_followup.alsfrs_total.where(duration > Timedelta(0), ALSFRS_MAX_VALUE)
-	alsfrs_last = last_followup.alsfrs_total
-	progression = alsfrs_last - alsfrs_first
-
-	duration.mask(duration == Timedelta(0), dx_delta, inplace=True)
-	return -progression / (duration.dt.days / 30)
 
 @project('precision_als')
 class PrecisionALS(Project):
 
 	def __init__(self, datadir: Path):
 		patients = load_data(datadir, 'ufmn/patients')
-		patients = self._patients = patients[patients.fecha_dx.notna()]
+		self._patients = patients = patients[patients.fecha_dx.notna()]
+		self._alsfrs_data = alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
+		self._nutr_data = nutr_data = load_data(datadir, 'ufmn/nutr')
+		self._resp_data = resp_data = load_data(datadir, 'ufmn/resp')
+		self._followups = load_followup_data(datadir, alsfrs_data=alsfrs_data,
+		                               nutr_data=nutr_data, resp_data=resp_data)
 
 		self._urg_episodes = load_data(datadir, 'hub_urg/episodes')
 		self._urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
 		self._hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
 		self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
 
-		followups = load_followup_data(datadir)
-		self._followups = followups = self._patients.merge(followups, on='id_paciente')
-
-		alsfrs_data = followups[followups.alsfrs_total.notna()]
-		followup_start = alsfrs_data.groupby('id_paciente').fecha_visita.min()
-		self._from_dx = resample_followup_data(alsfrs_data, patients.fecha_dx, freq='3M')
-		self._from_followup_start = resample_followup_data(alsfrs_data, followup_start, freq='3M')
-
-
-	def describe(self) -> None:
-		print()
-		print(' .:: PRECISION ALS ::.')
-		print()
-
-		print(' Biogen Extant Task 1')
-		print(' --------------------')
-		print(f' > Total number of cases: {len(self._patients)}')
-		print(f' > Current number of living cases: {len(self._patients[~self._patients.exitus])}')
-
-		gene_info = self._patients[self._patients[GENE_FIELDS.values()].notna().any(axis=1)]
-		print(f' > Number of cases with some genetic data available: {len(gene_info)}')
-		for name, field in GENE_FIELDS.items():
-			print(f'\t * {name} -> {sum(gene_info[field].notna())} (altered: {sum(gene_info[field] == "Alterado")})')
-		print()
-
-		print(' Biogen Extant Task 2')
-		print(' --------------------')
-		print(' > Number of cases with follow-up data available:')
-		print(f'\t * 1+ follow-up -> {len(self._followups.value_counts("id_paciente"))}')
-		print(f'\t * 2+ follow-up -> {sum(self._followups.value_counts("id_paciente") >= 2)}')
-		print()
-
-		print(' Biogen Extant Task 3')
-		print(' --------------------')
-		print(f' > Time to ambulation support: {len(self._followups[self._followups.caminar <= 2].value_counts("id_paciente"))}')
-		print(f' > Time to CPAP: {len(self._followups[self._followups.inicio_cpap.notna()].value_counts("id_paciente"))}')
-		print(f' > Time to VMNI: {len(self._followups[self._followups.inicio_vmni.notna()].value_counts("id_paciente"))}')
-		print(f' > Time to PEG: {len(self._followups[self._followups.fecha_indicacion_peg.notna()].value_counts("id_paciente"))}')
-		print(f' > Time to MiToS: {len(self._followups[self._followups.mitos_c.notna()].value_counts("id_paciente"))}')
-		for n in range(5):
-			print(f'\t * Stage {n} -> {len(self._followups[self._followups.mitos_c == n].value_counts("id_paciente"))}')
-		print(f' > Time to King\'s: {len(self._followups[self._followups.kings_c.notna()].value_counts("id_paciente"))}')
-		for n in range(5):
-			print(f'\t * Stage {n} -> {len(self._followups[self._followups.kings_c == n].value_counts("id_paciente"))}')
-		print(f' > Time to death: {len(self._patients[self._patients.fecha_exitus.notna()])}')
-		print()
-
-		print(' Biogen Extant Task 4')
-		print(' --------------------')
-		print(f' > Patients on Riluzole: {sum(self._patients.riluzol.fillna(False))}')
-		print(f' > Time to Riluzole data available: {sum(self._patients.inicio_riluzol.notna())}')
-		print(f' > Patients with symptomatic treatment data available: (pending)')
-		print()
-
-		print(' Biogen Extant Task 5')
-		print(' --------------------')
-		print(f' > Patients with hospitalization data available: {len(self._patients[self._patients.nhc.notna()])}')
-		print(f' > Patients with ER consultation data available: {len(self._patients[self._patients.nhc.notna()])}')
-		print()
-
-		print(' Biogen Extant Task 6')
-		print(' --------------------')
-		print(f' > Patients with working status data available: (pending)')
-		print(f' > Patients with level of assistance data available: (pending)')
-		print()
-
-
-	def export_data(self) -> DataFrame:
+	def _export_patient_data(self) -> DataFrame:
 		return DataFrame({
-			'site': 'Bellvitge Barcelona',
-			'patient_id': self._patients.index,
-
 			'birthdate': self._patients.fecha_nacimiento,
 			'sex': self._patients.sexo.map(SEX_CATEGORIES),
-
-			'c9_status': self._patients.estado_c9.map(GENE_STATUS_CATEGORIES),
-			'sod1_status': self._patients.estado_sod1.map(GENE_STATUS_CATEGORIES),
-			'atxn2_status': self._patients.estado_atxn2.map(GENE_STATUS_CATEGORIES),
-
+			'smoking': self._patients.fumador.map(SMOKING_CATEGORIES),
 			'clinical_onset': self._patients.inicio_clinica,
-			'als_dx': self._patients.fecha_dx,
-
-			'n_followups': self._followups.value_counts('id_paciente').astype('Int64'),
-			'first_followup': self._followups.groupby('id_paciente').fecha_visita.min(),
-			'last_followup': self._followups.groupby('id_paciente').fecha_visita.max(),
-
+			'dx_date': self._patients.fecha_dx,
 			'riluzole_received': self._patients.riluzol,
-			'riluzole_initiation': self._patients.inicio_riluzol,
-
-			'alsfrs_dx': self._from_dx.groupby('id_paciente').nth(0).alsfrs_total,
-			'alsfrs_dx_m3': self._from_dx.groupby('id_paciente').nth(1).alsfrs_total,
-			'alsfrs_dx_y1': self._from_dx.groupby('id_paciente').nth(1 * 4).alsfrs_total,
-			'alsfrs_dx_y2': self._from_dx.groupby('id_paciente').nth(2 * 4).alsfrs_total,
-			'alsfrs_dx_y3': self._from_dx.groupby('id_paciente').nth(3 * 4).alsfrs_total,
-			'alsfrs_dx_y4': self._from_dx.groupby('id_paciente').nth(4 * 4).alsfrs_total,
-			'alsfrs_dx_y5': self._from_dx.groupby('id_paciente').nth(5 * 4).alsfrs_total,
-
-			'alsfrs_followup_start': self._from_followup_start.groupby('id_paciente').nth(0).alsfrs_total,
-			'alsfrs_followup_m3': self._from_followup_start.groupby('id_paciente').nth(1).alsfrs_total,
-			'alsfrs_followup_m6': self._from_followup_start.groupby('id_paciente').nth(2).alsfrs_total,
-			'alsfrs_followup_m9': self._from_followup_start.groupby('id_paciente').nth(3).alsfrs_total,
-			'alsfrs_followup_m12': self._from_followup_start.groupby('id_paciente').nth(4).alsfrs_total,
-			'alsfrs_followup_m15': self._from_followup_start.groupby('id_paciente').nth(5).alsfrs_total,
-			'alsfrs_followup_m18': self._from_followup_start.groupby('id_paciente').nth(6).alsfrs_total,
-			'alsfrs_followup_m21': self._from_followup_start.groupby('id_paciente').nth(7).alsfrs_total,
-			'alsfrs_followup_m24': self._from_followup_start.groupby('id_paciente').nth(8).alsfrs_total,
-			'alsfrs_followup_m27': self._from_followup_start.groupby('id_paciente').nth(9).alsfrs_total,
-			'alsfrs_followup_m30': self._from_followup_start.groupby('id_paciente').nth(10).alsfrs_total,
-			'alsfrs_followup_m33': self._from_followup_start.groupby('id_paciente').nth(11).alsfrs_total,
-			'alsfrs_followup_m36': self._from_followup_start.groupby('id_paciente').nth(12).alsfrs_total,
-			'alsfrs_followup_m39': self._from_followup_start.groupby('id_paciente').nth(13).alsfrs_total,
-			'alsfrs_followup_m42': self._from_followup_start.groupby('id_paciente').nth(14).alsfrs_total,
-			'alsfrs_followup_m45': self._from_followup_start.groupby('id_paciente').nth(15).alsfrs_total,
-			'alsfrs_followup_m48': self._from_followup_start.groupby('id_paciente').nth(16).alsfrs_total,
-			'alsfrs_followup_m51': self._from_followup_start.groupby('id_paciente').nth(17).alsfrs_total,
-			'alsfrs_followup_m54': self._from_followup_start.groupby('id_paciente').nth(18).alsfrs_total,
-			'alsfrs_followup_m57': self._from_followup_start.groupby('id_paciente').nth(19).alsfrs_total,
-			'alsfrs_followup_m60': self._from_followup_start.groupby('id_paciente').nth(20).alsfrs_total,
-
-			'kings_1': self._followups[self._followups.kings_c == 1].groupby('id_paciente').fecha_visita.min(),
-			'kings_2': self._followups[self._followups.kings_c == 2].groupby('id_paciente').fecha_visita.min(),
-			'kings_3': self._followups[self._followups.kings_c == 3].groupby('id_paciente').fecha_visita.min(),
-			'kings_4': self._followups[self._followups.kings_c == 4].groupby('id_paciente').fecha_visita.min(),
-
-			'mitos_1': self._followups[self._followups.mitos_c == 1].groupby('id_paciente').fecha_visita.min(),
-			'mitos_2': self._followups[self._followups.mitos_c == 2].groupby('id_paciente').fecha_visita.min(),
-			'mitos_3': self._followups[self._followups.mitos_c == 3].groupby('id_paciente').fecha_visita.min(),
-			'mitos_4': self._followups[self._followups.mitos_c == 4].groupby('id_paciente').fecha_visita.min(),
-
+			'riluzole_start': self._patients.inicio_riluzol,
 			'walking_aids': self._followups[self._followups.caminar <= 2].groupby('id_paciente').fecha_visita.min(),
 			'cpap_initiation': self._followups.groupby('id_paciente').inicio_cpap.min(),
 			'niv_support': self._followups.groupby('id_paciente').inicio_vmni.min(),
@@ -195,6 +88,137 @@ class PrecisionALS(Project):
 			'food_thickener_start': self._followups.groupby('id_paciente').inicio_espesante.min(),
 			'oral_supl_start': self._followups.groupby('id_paciente').inicio_supl_oral.min(),
 			'enteric_supl_start': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
-
+			'last_followup': self._followups.groupby('id_paciente').fecha_visita.max(),
 			'death': self._patients.fecha_exitus,
 		})
+
+	def _export_genetic_data(self) -> DataFrame:
+		return DataFrame({
+			'c9_status': self._patients.estado_c9.map(GENE_STATUS_CATEGORIES),
+			'sod1_status': self._patients.estado_sod1.map(GENE_STATUS_CATEGORIES),
+			'atxn2_status': self._patients.estado_atxn2.map(GENE_STATUS_CATEGORIES),
+		})
+
+	def _export_alsfrs_data(self) -> DataFrame:
+		alsfrs_data = self._alsfrs_data.merge(self._followups, how='left',
+		                                      on=['id_paciente', 'fecha_visita'],
+		                                      suffixes=[None, '_x'])
+
+		return DataFrame({
+			'patient_id': alsfrs_data.id_paciente,
+			'assessment_date': alsfrs_data.fecha_visita,
+			'speech': alsfrs_data.lenguaje,
+			'salivation': alsfrs_data.salivacion,
+			'swallowing': alsfrs_data.deglucion,
+			'handwriting': alsfrs_data.escritura,
+			'cutting': alsfrs_data.cortar,
+			'cutting_w_peg': alsfrs_data.cortar_con_peg,
+			'cutting_wo_peg': alsfrs_data.cortar_sin_peg,
+			'dressing': alsfrs_data.vestido,
+			'bed': alsfrs_data.cama,
+			'walking': alsfrs_data.caminar,
+			'stairs': alsfrs_data.subir_escaleras,
+			'dyspnea': alsfrs_data.disnea,
+			'orthopnea': alsfrs_data.ortopnea,
+			'resp_insuf': alsfrs_data.insuf_resp,
+			'alsfrs_bulbar': alsfrs_data.alsfrs_bulbar_c,
+			'alsfrs_fine_motor': alsfrs_data.alsfrs_fine_motor_c,
+			'alsfrs_gross_motor': alsfrs_data.alsfrs_gross_motor_c,
+			'alsfrs_resp': alsfrs_data.alsfrs_resp_c,
+			'alsfrs_total': alsfrs_data.alsfrs_total_c,
+			'kings': alsfrs_data.kings_c,
+			'mitos': alsfrs_data.mitos_c,
+		})
+
+	def _export_respiratory_data(self) -> DataFrame:
+		non_psng = self._resp_data.polisomnografia == False
+		self._resp_data.loc[non_psng, 'sas_apneas_obstructivas'] = None
+		self._resp_data.loc[non_psng, 'sas_apneas_no_claramente_obstructivas'] = None
+		self._resp_data.loc[non_psng, 'sas_apneas_centrales'] = None
+		self._resp_data.loc[non_psng, 'sas_apneas_mixtas'] = None
+
+		return DataFrame({
+			'patient_id': self._resp_data.id_paciente,
+			'assesment_date': self._resp_data.fecha_visita,
+			'abg_ph': self._resp_data.ph_sangre_arterial,
+			'abg_po2': self._resp_data.pao2,
+			'abg_pco2': self._resp_data.paco2,
+			'abg_hco3': self._resp_data.hco3,
+			'snip': self._resp_data.pns,
+			'pcf': self._resp_data.pcf,
+			'pcf_below_threshold': self._resp_data.pcf_below_threshold,
+			'mip': self._resp_data.pim,
+			'mip_below_threshold': self._resp_data.pim_below_threshold,
+			'mep': self._resp_data.pem,
+			'fvc_sitting': self._resp_data.fvc_sentado,
+			'fvc_sitting_abs': self._resp_data.fvc_sentado_absoluto,
+			'fvc_lying': self._resp_data.fvc_estirado,
+			'fvc_lying_abs': self._resp_data.fvc_estirado_absoluto,
+			'psng': self._resp_data.polisomnografia,
+			'psng_date': self._resp_data.fecha_realizacion_polisomnografia,
+			'psng_ct90': self._resp_data.ct90,
+			'psng_odi3': self._resp_data.odi3,
+			'psng_iah': self._resp_data.iah,
+			'psng_mean_spo2': self._resp_data.sao2_media,
+			'psng_obstr_apneas': self._resp_data.sas_apneas_obstructivas,
+			'psng_non_obstr_apneas': self._resp_data.sas_apneas_no_claramente_obstructivas,
+			'psng_central_apneas': self._resp_data.sas_apneas_centrales,
+			'psng_mixed_apneas': self._resp_data.sas_apneas_mixtas,
+		})
+
+	def _export_emergencies_data(self) -> DataFrame:
+		urg_data = (self._urg_episodes.reset_index()
+		                .merge(self._patients.reset_index(), on='nhc')
+		                .rename(columns={'id_episodio': 'episode_id'})
+		                .set_index('episode_id'))
+
+		return DataFrame({
+			'id_paciente': urg_data.id_paciente,
+			'admission_date': urg_data.inicio_episodio,
+			'discharge_date': urg_data.fin_episodio,
+			'discharge_type': urg_data.destino_alta.map(URG_DISCHARGE_TYPE_CATEGORIES),
+		})
+
+	def _export_emergencies_dx_data(self) -> DataFrame:
+		urg_dx = self._urg_diagnoses.reset_index()
+
+		return DataFrame({
+			'episode_id': urg_dx.id_episodio,
+			'dx_code': urg_dx.codigo_dx,
+			'dx_description': urg_dx.descripcion_dx,
+		})
+
+	def _export_hospitalization_data(self) -> DataFrame:
+		hosp_data = (self._hosp_episodes.reset_index()
+		                                .merge(self._patients.reset_index(), on='nhc')
+		                                .rename(columns={'id_episodio': 'episode_id'})
+		                                .set_index('episode_id'))
+
+		return DataFrame({
+			'id_paciente': hosp_data.id_paciente,
+			'admission_date': hosp_data.inicio_episodio,
+			'discharge_date': hosp_data.fin_episodio,
+			'discharge_type': hosp_data.destino_alta.map(HOSP_DISCHARGE_TYPE_CATEGORIES),
+			'discharge_department': hosp_data.servicio_alta,
+		})
+
+	def _export_hospitalization_dx_data(self) -> DataFrame:
+		hosp_dx = self._hosp_diagnoses.reset_index()
+
+		return DataFrame({
+			'episode_id': hosp_dx.id_episodio,
+			'dx_code': hosp_dx.codigo_dx,
+			'dx_description': hosp_dx.descripcion_dx,
+		})
+
+	def export_data(self) -> Dict[str, DataFrame]:
+		return {
+			'patients': self._export_patient_data(),
+			'genetics': self._export_genetic_data(),
+			'alsfrs': self._export_alsfrs_data(),
+			'respiratory': self._export_respiratory_data(),
+			'emergencies': self._export_emergencies_data(),
+			'emergencies_dx': self._export_emergencies_dx_data(),
+			'hospitalization': self._export_hospitalization_data(),
+			'hospitalization_dx': self._export_hospitalization_dx_data(),
+		}
