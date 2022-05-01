@@ -40,7 +40,7 @@ ALS_PHENOTYPE_CATEGORIES = {
 	'Atrofia Muscular Progresiva (AMP)': 'AMP',
 	'ELA Bulbar': 'ELA Bulbar',
 	'ELA Espinal': 'ELA Espinal',
-	'ELA Respiratoria': 'ELA Respiratory',
+	'ELA Respiratoria': 'ELA Respiratoria',
 	'Esclerosis Lateral Primaria (ELP)': 'ELP',
 	'Flail arm': 'Flail-Arm',
 	'Flail leg': 'Flail-Leg',
@@ -100,6 +100,7 @@ RESP_DATA_RENAME_COLUMNS = {
 	'fecha_cpap': 'inicio_cpap',
 	'fecha_colocacion_vmni': 'inicio_vmni',
 	'fecha_visita_fun_res': 'fecha_visita',
+	'tipo_patologia_respiratoria_patologia_instersticial': 'tipo_patologia_respiratoria_intersticial',
 	'sas_apneas_no_claramanete_obstructivas': 'sas_apneas_no_claramente_obstructivas',
 	'sintomas_sintomas_de_hipoventilacion_nocturna': 'sintomas_hipoventilacion_nocturna',
 	'motivo_retirada_vmi_intolerancia': 'motivo_retirada_vmni_intolerancia',
@@ -187,6 +188,19 @@ def _add_patient_genetic_data(df: DataFrame) -> None:
 	df.loc[df[OTHER_GENES_COLUMN].str.contains('KENNEDY[^@]+POSITIVO', case=False), 'estado_ar'] = GENE_STATUS_ALTERED_VALUE
 	df['estado_ar'] = df['estado_ar'].astype('category')
 
+def _add_patient_onset_region(df: DataFrame) -> None:
+	BULBAR_DESCRIPTORS = ['BMN', 'RESPIRATORIO', 'BULBAR']
+	SPINAL_DESCRIPTORS = ['MMSS', 'EESS', 'MMII', 'EEII']
+
+	df['distribucion_al_inicio_x'] = df.distribucion_al_inicio
+	distribucion = df.distribucion_al_inicio_x.str.split('@')
+	df['inicio_bulbar'] = distribucion.apply(lambda xs: any([x in BULBAR_DESCRIPTORS for x in xs]))
+	df['inicio_espinal'] = distribucion.apply(lambda xs: any([x in SPINAL_DESCRIPTORS for x in xs]))
+
+	df.distribucion_al_inicio = None
+	df.loc[( df.inicio_bulbar) & (~df.inicio_espinal), 'distribucion_al_inicio'] = 'Bulbar'
+	df.loc[(~df.inicio_bulbar) & ( df.inicio_espinal), 'distribucion_al_inicio'] = 'Espinal'
+	df.loc[( df.inicio_bulbar) & ( df.inicio_espinal), 'distribucion_al_inicio'] = 'Generalizada'
 
 def _clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_visita_datos_clinicos', OPT_DATE_PIPELINE, inplace=True)
@@ -198,6 +212,7 @@ def _clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'deterioro_cognitivo', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'estudio_cognitivo', OPT_ENUM_PIPELINE, values=COGNITIVE_DX_CATEGORIES, inplace=True)
 
+	_add_patient_onset_region(df)
 	_add_patient_genetic_data(df)
 
 	apply_transform_pipeline(df, 'historia_familiar', OPT_BOOL_PIPELINE, inplace=True)
@@ -310,6 +325,7 @@ def _clean_resp_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_realizacion_polisomnografia', OPT_DATE_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'ct90_polisomnografia', OPT_FLOAT_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'iah', OPT_FLOAT_PIPELINE, inplace=True)
+
 	apply_transform_pipeline(df, 'sas_no', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sas_apneas_obstructivas', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'sas_apneas_no_claramanete_obstructivas', OPT_BOOL_PIPELINE, inplace=True)

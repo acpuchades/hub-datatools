@@ -103,7 +103,7 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
 
 
 def load_followup_data(datadir: Path = None, alsfrs_data: pd.DataFrame = None,
-                       resp_data: pd.DataFrame = None, nutr_data: pd.DataFrame = None) -> pd.DataFrame:
+                       nutr_data: pd.DataFrame = None, resp_data: pd.DataFrame = None) -> pd.DataFrame:
 
 	alsfrs_data = alsfrs_data if alsfrs_data is not None else load_data(datadir, 'ufmn/alsfrs')
 	nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr')

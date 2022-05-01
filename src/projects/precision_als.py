@@ -1,35 +1,49 @@
 from pathlib import Path
 from typing import Dict
 
-from pandas import DataFrame, Series, Timedelta
+from pandas import DataFrame
 
 from projects import Project, project
 from projects._followup import load_followup_data
 from serialize import load_data
 
 
-ALSFRS_MAX_VALUE = 4 * 12
-
 GENE_FIELDS = {
-	 'C9orf72': 'estado_c9',
-	    'SOD1': 'estado_sod1',
-	   'ATXN2': 'estado_atxn2',
+	'C9orf72': 'estado_c9',
+	'SOD1': 'estado_sod1',
+	'ATXN2': 'estado_atxn2',
 }
 
 GENE_STATUS_CATEGORIES = {
-	  'Normal': 'Normal',
+	'Normal': 'Normal',
 	'Alterado': 'Altered',
 }
 
 SEX_CATEGORIES = {
 	'Hombre': 'Male',
-	 'Mujer': 'Female'
+	'Mujer': 'Female'
 }
 
 SMOKING_CATEGORIES = {
-	  'Fumador': 'Active',
+	'Fumador': 'Active',
 	'Exfumador': 'Ceased',
-	    'Nunca': 'Never',
+	'Nunca': 'Never',
+}
+
+ONSET_REGION_CATEGORIES = {
+	'Bulbar': 'Bulbar',
+	'Espinal': 'Limbs',
+	'Generalizada': 'Generalized',
+}
+
+COGNITIVE_DX_CATEGORIES = {
+	'DTA': 'AD',
+	'DFT': 'DFT',
+	'DCL-Cognitivo': 'DCL-Cognitive',
+	'DCL-Conductual': 'DCL-Behavioral',
+	'DCL-Mixto': 'DCL-Mixed',
+	'Normal': 'Normal',
+	'Otros': 'Other',
 }
 
 HOSP_DISCHARGE_TYPE_CATEGORIES = {
@@ -40,7 +54,7 @@ HOSP_DISCHARGE_TYPE_CATEGORIES = {
 	'AGUTS/PSIQUIATRIC': 'Transfer',
 	'H. DOMICILARIA': 'Home Hospitalization',
 	'SOCI SANITARI': 'Rehabilitation',
-	'EXITUS': 'Exitus',
+	'EXITUS': 'Death',
 }
 
 URG_DISCHARGE_TYPE_CATEGORIES = {
@@ -50,7 +64,7 @@ URG_DISCHARGE_TYPE_CATEGORIES = {
 	'REMISIO A ATENCIO PRIMARIA': 'Planned',
 	'DERIVACIO A UN ALTRE CENTRE': 'Transfer',
 	'INGRES A L\'HOSPITAL': 'Admitted',
-	'EXITUS': 'Exitus',
+	'EXITUS': 'Death',
 }
 
 
@@ -59,36 +73,79 @@ class PrecisionALS(Project):
 
 	def __init__(self, datadir: Path):
 		patients = load_data(datadir, 'ufmn/patients')
-		self._patients = patients = patients[patients.fecha_dx.notna()]
-		self._alsfrs_data = alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
-		self._nutr_data = nutr_data = load_data(datadir, 'ufmn/nutr')
-		self._resp_data = resp_data = load_data(datadir, 'ufmn/resp')
-		self._followups = load_followup_data(datadir, alsfrs_data=alsfrs_data,
-		                               nutr_data=nutr_data, resp_data=resp_data)
 
-		self._urg_episodes = load_data(datadir, 'hub_urg/episodes')
-		self._urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
-		self._hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
-		self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
+		alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
+		nutr_data = load_data(datadir, 'ufmn/nutr')
+		resp_data = load_data(datadir, 'ufmn/resp')
+		followups = load_followup_data(datadir, alsfrs_data, nutr_data, resp_data)
+
+		urg_episodes = load_data(datadir, 'hub_urg/episodes')
+		urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
+		hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
+		hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
+
+		self._patients = patients[patients.fecha_dx.notna()]
+		self._patients.index.name = 'patient_id'
+
+		self._alsfrs_data = (alsfrs_data.reset_index()
+			.merge(followups, on=['id_paciente', 'fecha_visita'], suffixes=[None, '_x'])
+			.rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assesment_date'})
+			.set_index(['patient_id', 'assesment_date']).sort_index())
+
+		self._nutr_data = (nutr_data.reset_index()
+			.rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assesment_date'})
+			.set_index(['patient_id', 'assesment_date']).sort_index())
+
+		self._resp_data = (resp_data.reset_index()
+			.rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assesment_date'})
+			.set_index(['patient_id', 'assesment_date']).sort_index())
+
+		self._followups = (followups.reset_index()
+			.rename(columns={'id_paciente': 'patient_id'}))
+
+		self._urg_episodes = (urg_episodes.reset_index()
+			.merge(self._patients.reset_index(), on='nhc')
+			.rename(columns={'patient_id': 'id_paciente'})
+			.rename(columns={'id_episodio': 'episode_id'})
+			.set_index('episode_id'))
+
+		self._urg_diagnoses = urg_diagnoses
+		self._urg_diagnoses.index.names = ['episode_id', 'dx_code']
+
+		self._hosp_episodes = (hosp_episodes.reset_index()
+			.merge(self._patients.reset_index(), on='nhc')
+			.rename(columns={'patient_id': 'id_paciente'})
+			.rename(columns={'id_episodio': 'episode_id'})
+			.set_index('episode_id'))
+
+		self._hosp_diagnoses = hosp_diagnoses
+		self._hosp_diagnoses.index.names = ['episode_id', 'dx_code']
 
 	def _export_patient_data(self) -> DataFrame:
 		return DataFrame({
 			'birthdate': self._patients.fecha_nacimiento,
 			'sex': self._patients.sexo.map(SEX_CATEGORIES),
 			'smoking': self._patients.fumador.map(SMOKING_CATEGORIES),
+			'ph_copd': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_epoc,
+			'ph_asthma': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_asma,
+			'ph_bronchiectases': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_bronquiectasias,
+			'ph_interstitial': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_intersticial,
+			'ph_sahs': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_saos,
+			'fh_als': self._patients.historia_familiar_motoneurona,
+			'fh_alzheimer': self._patients.historia_familiar_alzheimer,
+			'fh_parkinson': self._patients.historia_familiar_parkinson,
+			'cognitive_imp': self._patients.deterioro_cognitivo,
+			'cognitive_dx': self._patients.estudio_cognitivo.map(COGNITIVE_DX_CATEGORIES),
 			'clinical_onset': self._patients.inicio_clinica,
+			'phenotype_dx': self._patients.fenotipo_dx,
+			'phenotype_death': self._patients.fenotipo_exitus,
+			'onset_region': self._patients.distribucion_al_inicio_x,
 			'dx_date': self._patients.fecha_dx,
 			'riluzole_received': self._patients.riluzol,
 			'riluzole_start': self._patients.inicio_riluzol,
-			'walking_aids': self._followups[self._followups.caminar <= 2].groupby('id_paciente').fecha_visita.min(),
-			'cpap_initiation': self._followups.groupby('id_paciente').inicio_cpap.min(),
-			'niv_support': self._followups.groupby('id_paciente').inicio_vmni.min(),
-			'imv_support': self._followups[self._followups.insuf_resp == 0].groupby('id_paciente').fecha_visita.min(),
-			'peg_colocation': self._followups.groupby('id_paciente').fecha_colocacion_peg.min(),
-			'food_thickener_start': self._followups.groupby('id_paciente').inicio_espesante.min(),
-			'oral_supl_start': self._followups.groupby('id_paciente').inicio_supl_oral.min(),
-			'enteric_supl_start': self._followups.groupby('id_paciente').inicio_supl_enteral.min(),
-			'last_followup': self._followups.groupby('id_paciente').fecha_visita.max(),
+			'last_followup': self._followups.groupby('patient_id').fecha_visita.max(),
+			'niv_support': self._followups[self._followups.insuf_resp == 1].groupby('patient_id').fecha_visita.min(),
+			'imv_support': self._followups[self._followups.insuf_resp == 0].groupby('patient_id').fecha_visita.min(),
 			'death': self._patients.fecha_exitus,
 		})
 
@@ -100,46 +157,32 @@ class PrecisionALS(Project):
 		})
 
 	def _export_alsfrs_data(self) -> DataFrame:
-		alsfrs_data = self._alsfrs_data.merge(self._followups, how='left',
-		                                      on=['id_paciente', 'fecha_visita'],
-		                                      suffixes=[None, '_x'])
-
 		return DataFrame({
-			'patient_id': alsfrs_data.id_paciente,
-			'assessment_date': alsfrs_data.fecha_visita,
-			'speech': alsfrs_data.lenguaje,
-			'salivation': alsfrs_data.salivacion,
-			'swallowing': alsfrs_data.deglucion,
-			'handwriting': alsfrs_data.escritura,
-			'cutting': alsfrs_data.cortar,
-			'cutting_w_peg': alsfrs_data.cortar_con_peg,
-			'cutting_wo_peg': alsfrs_data.cortar_sin_peg,
-			'dressing': alsfrs_data.vestido,
-			'bed': alsfrs_data.cama,
-			'walking': alsfrs_data.caminar,
-			'stairs': alsfrs_data.subir_escaleras,
-			'dyspnea': alsfrs_data.disnea,
-			'orthopnea': alsfrs_data.ortopnea,
-			'resp_insuf': alsfrs_data.insuf_resp,
-			'alsfrs_bulbar': alsfrs_data.alsfrs_bulbar_c,
-			'alsfrs_fine_motor': alsfrs_data.alsfrs_fine_motor_c,
-			'alsfrs_gross_motor': alsfrs_data.alsfrs_gross_motor_c,
-			'alsfrs_resp': alsfrs_data.alsfrs_resp_c,
-			'alsfrs_total': alsfrs_data.alsfrs_total_c,
-			'kings': alsfrs_data.kings_c,
-			'mitos': alsfrs_data.mitos_c,
+			'speech': self._alsfrs_data.lenguaje,
+			'salivation': self._alsfrs_data.salivacion,
+			'swallowing': self._alsfrs_data.deglucion,
+			'handwriting': self._alsfrs_data.escritura,
+			'cutting': self._alsfrs_data.cortar,
+			'cutting_w_peg': self._alsfrs_data.cortar_con_peg,
+			'cutting_wo_peg': self._alsfrs_data.cortar_sin_peg,
+			'dressing': self._alsfrs_data.vestido,
+			'bed': self._alsfrs_data.cama,
+			'walking': self._alsfrs_data.caminar,
+			'stairs': self._alsfrs_data.subir_escaleras,
+			'dyspnea': self._alsfrs_data.disnea,
+			'orthopnea': self._alsfrs_data.ortopnea,
+			'resp_insuf': self._alsfrs_data.insuf_resp,
+			'alsfrs_bulbar': self._alsfrs_data.alsfrs_bulbar_c,
+			'alsfrs_fine_motor': self._alsfrs_data.alsfrs_fine_motor_c,
+			'alsfrs_gross_motor': self._alsfrs_data.alsfrs_gross_motor_c,
+			'alsfrs_resp': self._alsfrs_data.alsfrs_resp_c,
+			'alsfrs_total': self._alsfrs_data.alsfrs_total_c,
+			'kings': self._alsfrs_data.kings_c,
+			'mitos': self._alsfrs_data.mitos_c,
 		})
 
 	def _export_respiratory_data(self) -> DataFrame:
-		non_psng = self._resp_data.polisomnografia == False
-		self._resp_data.loc[non_psng, 'sas_apneas_obstructivas'] = None
-		self._resp_data.loc[non_psng, 'sas_apneas_no_claramente_obstructivas'] = None
-		self._resp_data.loc[non_psng, 'sas_apneas_centrales'] = None
-		self._resp_data.loc[non_psng, 'sas_apneas_mixtas'] = None
-
 		return DataFrame({
-			'patient_id': self._resp_data.id_paciente,
-			'assesment_date': self._resp_data.fecha_visita,
 			'abg_ph': self._resp_data.ph_sangre_arterial,
 			'abg_po2': self._resp_data.pao2,
 			'abg_pco2': self._resp_data.paco2,
@@ -166,49 +209,53 @@ class PrecisionALS(Project):
 			'psng_mixed_apneas': self._resp_data.sas_apneas_mixtas,
 		})
 
-	def _export_emergencies_data(self) -> DataFrame:
-		urg_data = (self._urg_episodes.reset_index()
-		                .merge(self._patients.reset_index(), on='nhc')
-		                .rename(columns={'id_episodio': 'episode_id'})
-		                .set_index('episode_id'))
-
+	def _export_nutritional_data(self) -> DataFrame:
 		return DataFrame({
-			'id_paciente': urg_data.id_paciente,
-			'admission_date': urg_data.inicio_episodio,
-			'discharge_date': urg_data.fin_episodio,
-			'discharge_type': urg_data.destino_alta.map(URG_DISCHARGE_TYPE_CATEGORIES),
+			'weight': self._nutr_data.peso,
+			'height': self._nutr_data.estatura,
+			'bmi': self._nutr_data.imc,
+			'peg_indication': self._nutr_data.indicacion_peg,
+			'peg_indication_date': self._nutr_data.fecha_indicacion_peg,
+			'peg_carrier': self._nutr_data.portador_peg,
+			'peg_colocation_date': self._nutr_data.fecha_colocacion_peg,
+			'peg_removal': self._nutr_data.retirada_peg,
+			'peg_removal_date': self._nutr_data.fecha_retirada_peg,
+			'dysphagia': self._nutr_data.disfagia,
+			'food_thickener_usage': self._nutr_data.espesante,
+			'food_thickener_start': self._nutr_data.inicio_espesante,
+			'oral_supplementation': self._nutr_data.supl_oral,
+			'oral_supplementation_start': self._nutr_data.inicio_supl_oral,
+			'enteric_supplementation': self._nutr_data.supl_enteral,
+			'enteric_supplementation_start': self._nutr_data.inicio_supl_enteral,
+			'constipation': self._nutr_data.estreñimiento,
+			'laxative_usage': self._nutr_data.laxante,
+		})
+
+	def _export_emergencies_data(self) -> DataFrame:
+		return DataFrame({
+			'patient_id': self._urg_episodes.id_paciente,
+			'admission_date': self._urg_episodes.inicio_episodio,
+			'discharge_date': self._urg_episodes.fin_episodio,
+			'discharge_type': self._urg_episodes.destino_alta.map(URG_DISCHARGE_TYPE_CATEGORIES),
 		})
 
 	def _export_emergencies_dx_data(self) -> DataFrame:
-		urg_dx = self._urg_diagnoses.reset_index()
-
 		return DataFrame({
-			'episode_id': urg_dx.id_episodio,
-			'dx_code': urg_dx.codigo_dx,
-			'dx_description': urg_dx.descripcion_dx,
+			'dx_description': self._urg_diagnoses.descripcion_dx,
 		})
 
 	def _export_hospitalization_data(self) -> DataFrame:
-		hosp_data = (self._hosp_episodes.reset_index()
-		                                .merge(self._patients.reset_index(), on='nhc')
-		                                .rename(columns={'id_episodio': 'episode_id'})
-		                                .set_index('episode_id'))
-
 		return DataFrame({
-			'id_paciente': hosp_data.id_paciente,
-			'admission_date': hosp_data.inicio_episodio,
-			'discharge_date': hosp_data.fin_episodio,
-			'discharge_type': hosp_data.destino_alta.map(HOSP_DISCHARGE_TYPE_CATEGORIES),
-			'discharge_department': hosp_data.servicio_alta,
+			'patient_id': self._hosp_episodes.id_paciente,
+			'admission_date': self._hosp_episodes.inicio_episodio,
+			'discharge_date': self._hosp_episodes.fin_episodio,
+			'discharge_type': self._hosp_episodes.destino_alta.map(HOSP_DISCHARGE_TYPE_CATEGORIES),
+			'discharge_department': self._hosp_episodes.servicio_alta,
 		})
 
 	def _export_hospitalization_dx_data(self) -> DataFrame:
-		hosp_dx = self._hosp_diagnoses.reset_index()
-
 		return DataFrame({
-			'episode_id': hosp_dx.id_episodio,
-			'dx_code': hosp_dx.codigo_dx,
-			'dx_description': hosp_dx.descripcion_dx,
+			'dx_description': self._hosp_diagnoses.descripcion_dx,
 		})
 
 	def export_data(self) -> Dict[str, DataFrame]:
@@ -217,6 +264,7 @@ class PrecisionALS(Project):
 			'genetics': self._export_genetic_data(),
 			'alsfrs': self._export_alsfrs_data(),
 			'respiratory': self._export_respiratory_data(),
+			'nutritional': self._export_nutritional_data(),
 			'emergencies': self._export_emergencies_data(),
 			'emergencies_dx': self._export_emergencies_dx_data(),
 			'hospitalization': self._export_hospitalization_data(),
