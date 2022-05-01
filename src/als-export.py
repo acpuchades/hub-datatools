@@ -31,7 +31,9 @@ def _export_data_csv(data: DataFrame | Dict[str, DataFrame], path: Path, replace
 			childpath = path.joinpath(key)
 			_export_data_csv(child, childpath, replace)
 	else:
-		path = path.with_suffix('.csv')
+		if not path.suffix:
+			path = path.with_suffix('.csv')
+
 		if path.exists() and not replace:
 			raise FileExistsError('output file already exists')
 
@@ -40,6 +42,12 @@ def _export_data_csv(data: DataFrame | Dict[str, DataFrame], path: Path, replace
 
 
 def _export_data_excel(data: DataFrame | Dict[str, DataFrame], path: Path, replace: bool = False, **kwargs: Dict[str, Any]) -> None:
+	if not path.suffix:
+		path = path.with_suffix('.xlsx')
+
+	if path.exists and not replace:
+		raise FileExistsError('output file already exists')
+
 	path.parent.mkdir(exist_ok=True)
 	if isinstance(data, dict):
 		try:
@@ -62,13 +70,6 @@ DEFAULT_FORMAT = 'csv'
 
 def export_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: str,
                 replace: bool = False, **kwargs: Dict[str, Any]) -> None:
-
-	if path.suffix is None:
-		path = path.with_suffix(FORMAT_SUFFIXES.get(format))
-
-	if path.exists() and not replace:
-		raise FileExistsError('output file already exists')
-
 	exportfn = EXPORT_FORMATS.get(format)
 	if exportfn is None:
 		raise NotImplementedError('unsupported output file format')
