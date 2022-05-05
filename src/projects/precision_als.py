@@ -30,20 +30,44 @@ SMOKING_CATEGORIES = {
 	'Nunca': 'Never',
 }
 
-ONSET_REGION_CATEGORIES = {
-	'Bulbar': 'Bulbar',
-	'Espinal': 'Limbs',
-	'Generalizada': 'Generalized',
-}
-
 COGNITIVE_DX_CATEGORIES = {
 	'DTA': 'AD',
 	'DFT': 'DFT',
-	'DCL-Cognitivo': 'DCL-Cognitive',
-	'DCL-Conductual': 'DCL-Behavioral',
-	'DCL-Mixto': 'DCL-Mixed',
+	'DCL-Cognitivo': 'MCI-Cognitive',
+	'DCL-Conductual': 'MCI-Behavioral',
+	'DCL-Mixto': 'MCI-Mixed',
 	'Normal': 'Normal',
 	'Otros': 'Other',
+}
+
+PHENOTYPE_CATEGORIES = {
+	'AMP': 'PMA',
+	'ELA Bulbar': 'Bulbar',
+	'ELA Espinal': 'Spinal',
+	'ELA Respiratoria': 'Respiratory',
+	'ELP': 'PLS',
+	'Flail-Arm': 'Flail-Arm',
+	'Flail-Leg': 'Flail-Leg',
+	'Hemiplejica': 'Hemiplegic',
+	'Monomielica': 'Monomielic',
+	'Otro': 'Other',
+	'PBP': 'PBP',
+	'Pseudopolineuritica': 'Pseudopolyneuritic',
+}
+
+MN_INVOLVEMENT_CATEGORIES = {
+	'MNS': 'UMN',
+	'MNI': 'LMN',
+	'MNS+MNI': 'UMN+LMN',
+	'MNS>MNI': 'UMN>LMN',
+	'MNI>MNS': 'LMN>UMN',
+}
+
+WEAKNESS_PATTERN_CATEGORIES = {
+	'Bulbar': 'Bulbar',
+	'MMSS': 'Upper Limbs',
+	'MMII': 'Lower Limbs',
+	'MMSS+MMII': 'Both Limbs',
 }
 
 HOSP_DISCHARGE_TYPE_CATEGORIES = {
@@ -105,18 +129,18 @@ class PrecisionALS(Project):
 
 		self._urg_episodes = (urg_episodes.reset_index()
 			.merge(self._patients.reset_index(), on='nhc')
-			.rename(columns={'patient_id': 'id_paciente'})
 			.rename(columns={'id_episodio': 'episode_id'})
-			.set_index('episode_id'))
+			.sort_values(['patient_id', 'inicio_episodio'])
+			.set_index(['patient_id', 'episode_id']))
 
 		self._urg_diagnoses = urg_diagnoses
 		self._urg_diagnoses.index.names = ['episode_id', 'dx_code']
 
 		self._hosp_episodes = (hosp_episodes.reset_index()
 			.merge(self._patients.reset_index(), on='nhc')
-			.rename(columns={'patient_id': 'id_paciente'})
 			.rename(columns={'id_episodio': 'episode_id'})
-			.set_index('episode_id'))
+			.sort_values(['patient_id', 'inicio_episodio'])
+			.set_index(['patient_id', 'episode_id']))
 
 		self._hosp_diagnoses = hosp_diagnoses
 		self._hosp_diagnoses.index.names = ['episode_id', 'dx_code']
@@ -126,20 +150,16 @@ class PrecisionALS(Project):
 			'birthdate': self._patients.fecha_nacimiento,
 			'sex': self._patients.sexo.map(SEX_CATEGORIES),
 			'smoking': self._patients.fumador.map(SMOKING_CATEGORIES),
-			'ph_copd': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_epoc,
-			'ph_asthma': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_asma,
-			'ph_bronchiectases': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_bronquiectasias,
-			'ph_interstitial': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_intersticial,
-			'ph_sahs': self._followups.groupby('patient_id').first().tipo_patologia_respiratoria_saos,
 			'fh_als': self._patients.historia_familiar_motoneurona,
 			'fh_alzheimer': self._patients.historia_familiar_alzheimer,
 			'fh_parkinson': self._patients.historia_familiar_parkinson,
 			'cognitive_imp': self._patients.deterioro_cognitivo,
 			'cognitive_dx': self._patients.estudio_cognitivo.map(COGNITIVE_DX_CATEGORIES),
 			'clinical_onset': self._patients.inicio_clinica,
-			'phenotype_dx': self._patients.fenotipo_dx,
-			'phenotype_death': self._patients.fenotipo_exitus,
-			'onset_region': self._patients.distribucion_al_inicio_x,
+			'phenotype_dx': self._patients.fenotipo_dx.map(PHENOTYPE_CATEGORIES),
+			'phenotype_death': self._patients.fenotipo_exitus.map(PHENOTYPE_CATEGORIES),
+			'mn_involvement': self._patients.afectacion_mn.map(MN_INVOLVEMENT_CATEGORIES),
+			'weakness_pattern': self._patients.patron_debilidad.map(WEAKNESS_PATTERN_CATEGORIES),
 			'dx_date': self._patients.fecha_dx,
 			'riluzole_received': self._patients.riluzol,
 			'riluzole_start': self._patients.inicio_riluzol,
@@ -231,42 +251,40 @@ class PrecisionALS(Project):
 			'laxative_usage': self._nutr_data.laxante,
 		})
 
-	def _export_emergencies_data(self) -> DataFrame:
+	def _export_ER_episodes_data(self) -> DataFrame:
 		return DataFrame({
-			'patient_id': self._urg_episodes.id_paciente,
 			'admission_date': self._urg_episodes.inicio_episodio,
 			'discharge_date': self._urg_episodes.fin_episodio,
 			'discharge_type': self._urg_episodes.destino_alta.map(URG_DISCHARGE_TYPE_CATEGORIES),
 		})
 
-	def _export_emergencies_dx_data(self) -> DataFrame:
+	def _export_ER_diagnoses_data(self) -> DataFrame:
 		return DataFrame({
 			'dx_description': self._urg_diagnoses.descripcion_dx,
 		})
 
-	def _export_hospitalization_data(self) -> DataFrame:
+	def _export_hospital_episodes_data(self) -> DataFrame:
 		return DataFrame({
-			'patient_id': self._hosp_episodes.id_paciente,
 			'admission_date': self._hosp_episodes.inicio_episodio,
 			'discharge_date': self._hosp_episodes.fin_episodio,
 			'discharge_type': self._hosp_episodes.destino_alta.map(HOSP_DISCHARGE_TYPE_CATEGORIES),
 			'discharge_department': self._hosp_episodes.servicio_alta,
 		})
 
-	def _export_hospitalization_dx_data(self) -> DataFrame:
+	def _export_hospital_diagnoses_data(self) -> DataFrame:
 		return DataFrame({
 			'dx_description': self._hosp_diagnoses.descripcion_dx,
 		})
 
 	def export_data(self) -> Dict[str, DataFrame]:
 		return {
-			'patients': self._export_patient_data(),
-			'genetics': self._export_genetic_data(),
-			'alsfrs': self._export_alsfrs_data(),
-			'respiratory': self._export_respiratory_data(),
-			'nutritional': self._export_nutritional_data(),
-			'emergencies': self._export_emergencies_data(),
-			'emergencies_dx': self._export_emergencies_dx_data(),
-			'hospitalization': self._export_hospitalization_data(),
-			'hospitalization_dx': self._export_hospitalization_dx_data(),
+			'Patients': self._export_patient_data(),
+			'Genetics': self._export_genetic_data(),
+			'ALSFRS-R': self._export_alsfrs_data(),
+			'Respiratory': self._export_respiratory_data(),
+			'Nutritional': self._export_nutritional_data(),
+			'ER Episodes': self._export_ER_episodes_data(),
+			'ER Diagnoses': self._export_ER_diagnoses_data(),
+			'Hospital Episodes': self._export_hospital_episodes_data(),
+			'Hospital Diagnoses': self._export_hospital_diagnoses_data(),
 		}

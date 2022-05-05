@@ -1,9 +1,9 @@
 import sqlite3
-from pandas      import DataFrame
-from sqlite3     import Connection
+from   pandas    import DataFrame
+from   sqlite3   import Connection
 
-from argparse    import ArgumentParser, Namespace
-from typing      import Dict
+from   argparse  import ArgumentParser, Namespace
+from   typing    import Dict
 
 from datasources import DataSource, datasource
 from transform   import *
@@ -59,6 +59,36 @@ COGNITIVE_DX_CATEGORIES = {
 	'Deterioro Cognitivo Leve mixto (DCL mixto)': 'DCL-Mixto',
 	'Normal': 'Normal',
 	'Otros': 'Otro',
+}
+
+MN_INVOLVEMENT_CATEGORIES = {
+	'UMN': 'MNS',
+	'LMN': 'MNI',
+	'BMN': 'MNS+MNI',
+	'UMN->BMN': 'MNS+MNI',
+}
+
+MN_PREDOMINANCE_CATEGORIES = {
+	'UMN': 'MNS',
+	'LMN': 'MNI',
+	'PREDOMINIO UMN': 'MNS',
+	'PREDOMINIO LMN': 'MNI',
+	'NINGUN PREDOMINIO': 'Ninguno',
+	'NINGUN PREDOMINIO+EXTRAPIRAMIDAL': 'Ninguno',
+	'PREDOMINIO LMN EN MMSS y PREDOMINIO UMN EN MMSS': 'Ninguno',
+}
+
+WEAKNESS_PATTERN_CATEGORIES = {
+	'MMSS': 'MMSS',
+	'EESS': 'MMSS',
+	'MMII': 'MMII',
+	'EEII': 'MMII',
+	'AMBAS': 'MMSS+MMII',
+	'MMSS Y MMII': 'MMSS+MMII',
+	'AMBAS IZQUIERDA': 'MMSS+MMII',
+	'GENERALIZADO': 'MMSS+MMII',
+	'BULBAR': 'Bulbar',
+	'RESPIRATORIO': 'Respiratory',
 }
 
 GENE_STATUS_NORMAL_VALUE = 'Normal'
@@ -188,19 +218,23 @@ def _add_patient_genetic_data(df: DataFrame) -> None:
 	df.loc[df[OTHER_GENES_COLUMN].str.contains('KENNEDY[^@]+POSITIVO', case=False), 'estado_ar'] = GENE_STATUS_ALTERED_VALUE
 	df['estado_ar'] = df['estado_ar'].astype('category')
 
-def _add_patient_onset_region(df: DataFrame) -> None:
-	BULBAR_DESCRIPTORS = ['BMN', 'RESPIRATORIO', 'BULBAR']
-	SPINAL_DESCRIPTORS = ['MMSS', 'EESS', 'MMII', 'EEII']
 
-	df['distribucion_al_inicio_x'] = df.distribucion_al_inicio
-	distribucion = df.distribucion_al_inicio_x.str.split('@')
-	df['inicio_bulbar'] = distribucion.apply(lambda xs: any([x in BULBAR_DESCRIPTORS for x in xs]))
-	df['inicio_espinal'] = distribucion.apply(lambda xs: any([x in SPINAL_DESCRIPTORS for x in xs]))
+def _add_patient_involvement_data(df: DataFrame) -> None:
+	data = df.distribucion_al_inicio.str.split('@', n=3, expand=True)
 
-	df.distribucion_al_inicio = None
-	df.loc[( df.inicio_bulbar) & (~df.inicio_espinal), 'distribucion_al_inicio'] = 'Bulbar'
-	df.loc[(~df.inicio_bulbar) & ( df.inicio_espinal), 'distribucion_al_inicio'] = 'Espinal'
-	df.loc[( df.inicio_bulbar) & ( df.inicio_espinal), 'distribucion_al_inicio'] = 'Generalizada'
+	# for each row, for each list item, try to map into allowed categories
+	# fillna method MUST be 'ffill' as predominance is a valid involvement category
+	# and it will overwrite involvement otherwise
+	involvement = data.apply(lambda xs: xs.map(MN_INVOLVEMENT_CATEGORIES)).ffill(axis=1).iloc[:, 2]
+	predominance = data.apply(lambda xs: xs.map(MN_PREDOMINANCE_CATEGORIES)).ffill(axis=1).iloc[:, 2]
+
+	df['afectacion_mn'] = involvement
+	df.loc[(involvement=='MNS+MNI') & (predominance == 'Ninguno'), 'afectacion_mn'] = 'MNS+MNI'
+	df.loc[(involvement=='MNS+MNI') & (predominance == 'MNS'), 'afectacion_mn'] = 'MNS>MNI'
+	df.loc[(involvement=='MNS+MNI') & (predominance == 'MNI'), 'afectacion_mn'] = 'MNI>MNS'
+
+	df['patron_debilidad'] = data.apply(lambda xs: xs.map(WEAKNESS_PATTERN_CATEGORIES)).ffill(axis=1).iloc[:, 2]
+
 
 def _clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'fecha_visita_datos_clinicos', OPT_DATE_PIPELINE, inplace=True)
@@ -212,8 +246,8 @@ def _clean_clinical_data(df: DataFrame) -> None:
 	apply_transform_pipeline(df, 'deterioro_cognitivo', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'estudio_cognitivo', OPT_ENUM_PIPELINE, values=COGNITIVE_DX_CATEGORIES, inplace=True)
 
-	_add_patient_onset_region(df)
 	_add_patient_genetic_data(df)
+	_add_patient_involvement_data(df)
 
 	apply_transform_pipeline(df, 'historia_familiar', OPT_BOOL_PIPELINE, inplace=True)
 	apply_transform_pipeline(df, 'historia_familiar_motoneurona', OPT_BOOL_PIPELINE, inplace=True)
