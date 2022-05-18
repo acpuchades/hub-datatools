@@ -36,7 +36,7 @@ def _export_data_csv(data: DataFrame | Dict[str, DataFrame], path: Path, replace
             path = path.with_suffix('.csv')
 
         if path.exists() and not replace:
-            raise FileExistsError('output file already exists')
+            raise FileExistsError('Output file already exists')
 
         path.parent.mkdir(exist_ok=True)
         data.to_csv(path, **kwargs)
@@ -47,7 +47,7 @@ def _export_data_excel(data: DataFrame | Dict[str, DataFrame], path: Path, repla
         path = path.with_suffix('.xlsx')
 
     if path.exists and not replace:
-        raise FileExistsError('output file already exists')
+        raise FileExistsError('Output file already exists')
 
     path.parent.mkdir(exist_ok=True)
     if isinstance(data, dict):
@@ -56,7 +56,7 @@ def _export_data_excel(data: DataFrame | Dict[str, DataFrame], path: Path, repla
                 for key, child in data.items():
                     child.to_excel(writer, sheet_name=key)
         except ValueError:
-            raise FileExistsError('output excel tab already exists')
+            raise FileExistsError('Output Excel tab already exists')
     else:
         data.to_excel(path, **kwargs)
 
@@ -73,7 +73,7 @@ def export_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: str,
                 replace: bool = False, **kwargs: Dict[str, Any]) -> None:
     exportfn = EXPORT_FORMATS.get(format)
     if exportfn is None:
-        raise NotImplementedError('unsupported output file format')
+        raise NotImplementedError('Unsupported output file format')
     exportfn(data, path, replace, **kwargs)
 
 
@@ -95,7 +95,6 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
                         help='file or directory to output project results')
     parser.add_argument('-r', '--replace', action='store_true',
                         help='replace existing file if already exists')
-    parser.add_argument('-v', '--verbose', action='store_true', help='display extra information')
     return parser
 
 
@@ -107,8 +106,7 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         logger = logging.getLogger()
-        if args.verbose:
-            logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
         if args.project is not None:
             projectclass = get_project_class(args.project, logger=logger)
@@ -123,13 +121,13 @@ if __name__ == '__main__':
             if isinstance(data, DataFrame):
                 data = data.query(args.query)
             else:
-                raise NotImplementedError('filtering of compound results not implemented')
+                raise NotImplementedError('Filtering of compound results not implemented')
 
         if args.columns is not None:
             if isinstance(data, DataFrame):
                 data = data[args.columns.split(',')]
             else:
-                raise NotImplementedError('subsetting of compound results not implemented')
+                raise NotImplementedError('Subsetting of compound results not implemented')
 
         format = args.format
 

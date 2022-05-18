@@ -15,7 +15,6 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
     parser.add_argument('-d', '--datadir', required=True, help='directory to store snapshot data')
     parser.add_argument('-r', '--replace', action='store_true',
                         help='replace snapshot data if already exists')
-    parser.add_argument('-v', '--verbose', action='store_true', help='display extra information')
 
     for name in get_datasource_names():
         group = parser.add_argument_group(name)
@@ -33,8 +32,7 @@ if __name__ == '__main__':
         args = parser.parse_args()
 
         logger = logging.getLogger()
-        if args.verbose:
-            logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
 
         nsources = 0
         for name in get_datasource_names():
@@ -55,3 +53,7 @@ if __name__ == '__main__':
     except FileExistsError:
         logging.error('Data file already exists')
         sys.exit(ExitCode.AlreadyExists.value)
+
+    except FileNotFoundError as e:
+        logging.error(e)
+        sys.exit(ExitCode.NotFound.value)
