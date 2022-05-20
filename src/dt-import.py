@@ -57,3 +57,6 @@ if __name__ == '__main__':
     except FileNotFoundError as e:
         logging.error(e)
         sys.exit(ExitCode.NotFound.value)
+
+    except ValueError as e:
+        parser.error(e)
