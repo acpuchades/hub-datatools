@@ -4,10 +4,50 @@ import pandas as pd
 
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Sequence
 
 from datasources import DataSource, datasource
 
+EDMUS_DATES_V5_7 = [
+    'onset_date',
+    'outcome_date',
+    'date',
+    'birth_date',
+    'relapse_date',
+    'date_of_previous_assessment',
+    'test_date',
+    'csf_date',
+    'time_clinical_poser_date',
+    'time_clinical_mcdonald_date',
+    'time_mri_date',
+    'ms_onset',
+    'compared_date',
+    'doubtful_date',
+    'clinical_assessment_date',
+    'date_of_birth',
+    'first_exam',
+    'last_clinical_follow_up',
+    'last_clinical_assessment',
+    'last_info',
+    'date_consent_form',
+    'ofsep_date_submission',
+    'ofset_date_signature',
+    'vital_status_date',
+    'deceased_date_of_information',
+    'created',
+    'last_modified',
+    'validation_date',
+    'last_menstruation',
+    'consent_date_biology',
+    'consent_date_genetics',
+    'ongoing_date',
+    'date_inclusion',
+    'date_consent',
+    'date_withdrawal',
+    'before',
+    'latest_date',
+    'end_date',
+]
 
 EDMUS_INDEXES_V5_7 = {
     'AE': 'ae_id',
@@ -46,13 +86,22 @@ EDMUS_INDEXES = {
     '5.7': EDMUS_INDEXES_V5_7,
 }
 
+EDMUS_DATES = {
+    '5.7': EDMUS_DATES_V5_7,
+}
+
 
 def _normalize_string(s: str) -> str:
     s = re.sub(r'\W+', '_', s)
     return s.lower()
 
 
-def _try_load_edmus_data_file(path: Path, indexes: Dict[str, str]) -> pd.DataFrame:
+def _transform_parse_dates(df: pd.DataFrame, datecols: Sequence[str]) -> pd.DataFrame:
+    cols = [col for col in df.columns if col in datecols]
+    df.loc[:, cols] = df.loc[:, cols].apply(lambda x: pd.to_datetime(x, dayfirst=True))
+
+
+def _try_load_edmus_data_file(path: Path, indexes: Dict[str, str], datecols: Sequence[str] = None) -> pd.DataFrame:
     pattern = r'(?P<site>\w+)-(?P<section>\w+)-(?:\d+)-(?:\d{6})_(?:\d{6})-(?P<export_mode>\w+)\.txt'
     result = re.match(pattern, path.name)
     if not result:
@@ -62,6 +111,7 @@ def _try_load_edmus_data_file(path: Path, indexes: Dict[str, str]) -> pd.DataFra
     logging.info(f'EDMUS: Loading "{section}" data file')
     df = pd.read_csv(path, sep='\t', encoding='utf-16')
     df.rename(columns=_normalize_string, inplace=True)
+    _transform_parse_dates(df, datecols)
 
     index = indexes.get(section)
     if index is not None:
@@ -90,14 +140,16 @@ class EDMUS(DataSource):
             raise ValueError('missing --edmus-version argument')
 
         indexes = EDMUS_INDEXES.get(args.edmus_version)
-        if not indexes:
+        coldates = EDMUS_DATES.get(args.edmus_version)
+        if not indexes or not coldates:
             raise NotImplemented('EDMUS: Unsupported version given')
 
         try:
             results = {}
             for path in Path(args.edmus).iterdir():
-                section, data = _try_load_edmus_data_file(path, indexes)
+                section, data = _try_load_edmus_data_file(path, indexes, coldates)
                 results[f'edmus/{section}'] = data
             return results
+
         except FileNotFoundError as e:
             raise FileNotFoundError('EDMUS: Data directory does not exist')
