@@ -424,7 +424,7 @@ class Search:
                 result = self.eval(cmdline)
 
             except UnknownCommand as e:
-                logging.error('Unrecognized command {e.command}')
+                logging.error(f'Unrecognized command {e.command}')
 
             except ExitEventLoop:
                 exited = True
