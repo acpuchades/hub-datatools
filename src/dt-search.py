@@ -2,7 +2,9 @@
 
 import logging
 import re
+import readline
 import sys
+
 
 from abc import abstractproperty
 from pathlib import Path
@@ -416,18 +418,19 @@ class Search:
         return True
 
     def event_loop(self) -> None:
-        exited = False
-        while not exited:
+        while True:
             try:
-                print(self.prompt, file=sys.stderr, end='', flush=True)
-                cmdline = sys.stdin.readline()
-                result = self.eval(cmdline)
+                result = self.eval(input(self.prompt))
 
             except UnknownCommand as e:
                 logging.error(f'Unrecognized command {e.command}')
 
+            except (EOFError, KeyboardInterrupt):
+                print('', file=sys.stderr)
+                break
+
             except ExitEventLoop:
-                exited = True
+                break
 
 
 def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
@@ -443,6 +446,7 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
 
 if __name__ == '__main__':
     console.initialize()
+
     parser = make_argument_parser()
     args = parser.parse_args()
 
@@ -457,8 +461,7 @@ if __name__ == '__main__':
         try:
             with open(file, 'r') as f:
                 for i, line in enumerate(f.readlines()):
-                    line = line.strip()
-                    search.eval(line)
+                    search.eval(line.strip())
 
         except UnknownCommand as e:
             logging.error(f'{file.name}:{i}: unrecognized command {e.command}')
