@@ -52,7 +52,7 @@ def _try_eval_query(df: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
     try:
         return df.query(query)
     except Exception as e:
-        logging.error(f'Invalid query: {e}')
+        logging.error(f'Invalid query: {e.args[0]}')
         return None
 
 
@@ -60,7 +60,7 @@ def _try_eval_expr(df: pd.DataFrame, expr: str) -> Optional[pd.DataFrame]:
     try:
         return df.eval(expr)
     except Exception as e:
-        logging.error(f'Invalid expression: {e}')
+        logging.error(f'Invalid expression: {e.args[0]}')
         return None
 
 
@@ -99,19 +99,43 @@ class GroupByNS(Namespace):
             return -1
 
     def _ungroup(self, console: 'Search', args: Sequence[int]) -> int:
-        cols = self._values.keys()
-        if len(cols) > 0:
-            summary = self._records.groupby(self._key).agg(**self._values)
-            data = self._records.join(summary, on=self._key)
-            self._records.loc[:, cols] = data.loc[:, cols]
-            logging.info(f'Added {len(cols)} fields')
-        console.pop_namespace()
-        return 0
+        try:
+            cols = self._values.keys()
+            if len(cols) > 0:
+                summary = self._records.groupby(self._key).agg(**self._values)
+                data = self._records.join(summary, on=self._key, rsuffix='_')
+                self._records.loc[:, cols] = data.loc[:, cols]
+                logging.info(f'Added {len(cols)} fields')
+            console.pop_namespace()
+            return 0
+
+        except Exception as e:
+            logging.error(f'Ungrouping error: {e.args[0]}')
+            console.pop_namespace()
+            return -1
 
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> int:
         match command:
             case 'summarize': return self._summarize(console, args)
             case 'ungroup': return self._ungroup(console, args)
+
+
+def _load_from_origin(console: 'Search', origin: str) -> Optional[pd.DataFrame]:
+    if origin.startswith('@'):
+        groupname = origin[1:]
+        records = console.get(f'groups:{groupname}')
+        if records is None:
+            logging.error('Group {groupname} not found')
+            return None
+
+    else:
+        datadir = console.get('DATADIR')
+        def load_from_datafile(key): return load_data(datadir, key)
+        records = _load_cached(console, origin, load_from_datafile)
+        if records is None:
+            return None
+
+    return records
 
 
 class GroupNS(Namespace):
@@ -134,30 +158,20 @@ class GroupNS(Namespace):
             return -1
 
         try:
-            datafile, *_ = args
-            datadir = console.get('DATADIR')
-            def load_datafile(key): return load_data(datadir, key)
-            self._records = _load_cached(console, datafile, load_datafile)
-            logging.info(f'Loaded {len(self._records)} records')
-            return 0
-
-        except FileNotFoundError:
-            logging.error('Data file does not exist')
-            return -1
-
-    def _loadgroup(self, console: 'Search', args: Sequence[str]) -> int:
-        try:
-            groupname, *_ = args
-            records = console.get(f'groups:{groupname}')
-            if records is None:
-                logging.error(f'Group "{groupname}" not found')
+            origin, *_ = args
+            self._records = _load_from_origin(console, origin)
+            if self._records is None:
                 return -1
-            self._records = records
-            logging.info(f'Loaded {len(records)} records')
+
+            logging.info(f'Loaded {len(self._records)} records from {origin}')
             return 0
 
         except ValueError:
-            logging.error('Group name not specified')
+            logging.error('Data source not specified')
+            return -1
+
+        except FileNotFoundError:
+            logging.error('Data file does not exist')
             return -1
 
     def _join(self, console: 'Search', args: Sequence[str]) -> int:
@@ -166,23 +180,20 @@ class GroupNS(Namespace):
             return -1
 
         try:
-            datafile, key, rkey, *_ = args + [None]
-            datadir = console.get('DATADIR')
-            def load_datafile(k): return load_data(datadir, k)
-            df = _load_cached(console, datafile, load_datafile)
-
+            origin, key, rkey, *_ = args + [None]
+            df = _load_from_origin(console, origin)
             if rkey is not None and key != rkey:
                 if len(self._selected) > 0:
                     selected = self._records.loc[self._selected]
                     self._selected = selected.merge(df, left_on=key, right_on=rkey).index
                 self._records = self._records.merge(df, left_on=key, right_on=rkey)
-                logging.info(f'Joined fields from "{datafile}" on {key}={rkey}')
+                logging.info(f'Joined fields from {origin} on {key}={rkey}')
             else:
                 if len(self._selected) > 0:
                     selected = self._records.loc[self._selected]
                     self._selected = selected.merge(df, on=key).index
                 self._records = self._records.merge(df, on=key)
-                logging.info(f'Joined fields from "{datafile}" on {key}')
+                logging.info(f'Joined fields from {origin} on {key}')
             return 0
 
         except ValueError:
@@ -191,6 +202,24 @@ class GroupNS(Namespace):
 
         except FileNotFoundError:
             logging.error('Data file does not exist')
+            return -1
+
+    def _select(self, console: 'Search', args: Sequence[str]) -> int:
+        if self._records is None:
+            logging.error('There are no records loaded yet')
+            return -1
+
+        if len(args) < 1:
+            logging.error('Selected fields not specified')
+            return -1
+
+        try:
+            self._records = self._records.loc[:, args]
+            logging.info(f'Selected fields: {", ".join(args)}')
+            return 0
+
+        except KeyError as e:
+            logging.error(f'Invalid columns: {e.args[0]}')
             return -1
 
     def _groupby(self, console: 'Search', args: Sequence[str]) -> int:
@@ -202,7 +231,7 @@ class GroupNS(Namespace):
             logging.error('Grouping key not specified')
             return -1
 
-        console.push_namespace(GroupByNS(args[0], self._records))
+        console.push_namespace(GroupByNS(args, self._records))
         return 0
 
     def _set(self, console: 'Search', args: Sequence[str]) -> int:
@@ -295,32 +324,33 @@ class GroupNS(Namespace):
             return 0
 
     def _save(self, console: 'Search', args: Sequence[str]) -> int:
-        logging.info(f'{len(self._selected)} records saved as group {self._groupname}')
+        logging.info(f'{len(self._selected)} records saved as @{self._groupname}')
         console.set(f'groups:{self._groupname}', self._records.loc[self._selected])
         console.pop_namespace()
         return 0
 
     def _help(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info('Available commands:')
-        logging.info('- load <name>'.ljust(PADDING, ' ') + 'Load records from data file')
-        logging.info('- loadgroup <group>'.ljust(PADDING, ' ') + 'Load records from group')
-        logging.info('- join <name> [key] [rkey]'.ljust(PADDING, ' ') + 'Join records from data file')
+        logging.info('- load <datafile | @groupname>'.ljust(PADDING, ' ') + 'Load records from source')
+        logging.info(
+            '- join <datafile | @groupname> [key] [rkey]'.ljust(PADDING, ' ') + 'Join records from data file')
         logging.info('- groupby <key>'.ljust(PADDING, ' ') + 'Enter groupby context with group key')
         logging.info('- set <name> <expr>'.ljust(PADDING, ' ') + 'Add computed field with value')
         logging.info('- unset <name>'.ljust(PADDING, ' ') + 'Remove field from records')
+        logging.info('- select <fields>...'.ljust(PADDING, ' ') + 'Select fields from records')
         logging.info('- showcols'.ljust(PADDING, ' ') + 'Show columns from records')
-        logging.info('- include all | include <expr>'.ljust(PADDING, ' ') + 'Add matching records')
-        logging.info('- exclude all | exclude <expr>'.ljust(PADDING, ' ') + 'Remove matching records')
+        logging.info('- include <all | expr>'.ljust(PADDING, ' ') + 'Add matching records')
+        logging.info('- exclude <all | expr>'.ljust(PADDING, ' ') + 'Remove matching records')
         logging.info('- save'.ljust(PADDING, ' ') + 'Save selected records and exit group context')
 
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
             case 'load': return self._load(console, args)
-            case 'loadgroup': return self._loadgroup(console, args)
             case 'join': return self._join(console, args)
             case 'groupby': return self._groupby(console, args)
             case 'set': return self._set(console, args)
             case 'unset': return self._unset(console, args)
+            case 'select': return self._select(console, args)
             case 'showcols': return self._showcols(console, args)
             case 'include': return self._include(console, args)
             case 'exclude': return self._exclude(console, args)
@@ -370,7 +400,7 @@ class GlobalNS(Namespace):
                     path = path.with_suffix('.xlsx')
                     records.to_excel(path)
 
-            logging.info(f'{len(records)} records saved to {path}')
+            logging.info(f'{len(records)} records exported to {path}')
             return 0
 
         except ValueError:
