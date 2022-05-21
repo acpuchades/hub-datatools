@@ -25,14 +25,21 @@ class Namespace:
     def install(self, console: 'Search'):
         pass
 
-    def exec(self, console: 'Search', command: str, args: Sequence[str]) -> int:
+    def exec(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         return None
 
-    def exec_global(self, console: 'Search', command: str, args: Sequence[str]) -> int:
+    def exec_global(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         return None
 
     def uninstall(self, console: 'Search') -> None:
         pass
+
+
+class UnknownCommand(RuntimeError):
+
+    def __init__(self, command, **kwargs):
+        super().__init__(**kwargs)
+        self.command = command
 
 
 class ExitEventLoop(Exception):
@@ -41,8 +48,6 @@ class ExitEventLoop(Exception):
 
 def try_eval_query(df: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
     try:
-        today = pd.to_datetime('today', utc=True)
-        now = pd.to_datetime('now', utc=True)
         return df.query(query)
     except Exception as e:
         logging.error(f'Invalid query: {e}')
@@ -51,8 +56,6 @@ def try_eval_query(df: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
 
 def try_eval_expr(df: pd.DataFrame, expr: str) -> Optional[pd.DataFrame]:
     try:
-        today = pd.to_datetime('today', utc=True)
-        now = pd.to_datetime('now', utc=True)
         return df.eval(expr)
     except Exception as e:
         logging.error(f'Invalid expression: {e}')
@@ -65,6 +68,9 @@ def load_cached(console: 'Search', key: str, fn: Callable[[], Any]) -> Any:
         value = fn(key)
         console.set(f'cache:{key}', value)
     return value
+
+
+PADDING = 40
 
 
 class GroupNS(Namespace):
@@ -167,7 +173,7 @@ class GroupNS(Namespace):
         try:
             name, *_ = args
             self._records.drop(columns=[name], inplace=True)
-            logging.info(f'Removed field "{name}"')
+            logging.info(f'Removed field {name}')
             return 0
 
         except ValueError:
@@ -195,7 +201,7 @@ class GroupNS(Namespace):
             logging.error('There are no records loaded yet')
             return -1
 
-        logging.info('Selected columns:')
+        logging.info('Available columns:')
         for name in self._records.columns:
             logging.info(f'- {name}')
         return 0
@@ -250,6 +256,19 @@ class GroupNS(Namespace):
         console.pop_namespace()
         return 0
 
+    def _help(self, console: 'Search', args: Sequence[str]) -> int:
+        logging.info('Available commands:')
+        logging.info('- load <name>'.ljust(PADDING, ' ') + 'Load records from data file')
+        logging.info('- loadgroup <group>'.ljust(PADDING, ' ') + 'Load records from group')
+        logging.info('- join <name> [key] [rkey]'.ljust(PADDING, ' ') + 'Join records from data file')
+        logging.info('- trim <name>'.ljust(PADDING, ' ') + 'Trim columns not in data file')
+        logging.info('- set <name> <expr>'.ljust(PADDING, ' ') + 'Add computed field with value')
+        logging.info('- unset <name>'.ljust(PADDING, ' ') + 'Remove field from records')
+        logging.info('- showcols'.ljust(PADDING, ' ') + 'Show columns from records')
+        logging.info('- include all | include <expr>'.ljust(PADDING, ' ') + 'Add matching records')
+        logging.info('- exclude all | exclude <expr>'.ljust(PADDING, ' ') + 'Remove matching records')
+        logging.info('- save'.ljust(PADDING, ' ') + 'Save selected records and exit group context')
+
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
             case 'load': return self._load(console, args)
@@ -262,6 +281,7 @@ class GroupNS(Namespace):
             case 'include': return self._include(console, args)
             case 'exclude': return self._exclude(console, args)
             case 'save': return self._save(console, args)
+            case 'help': return self._help(console, args)
         return None
 
 
@@ -291,16 +311,22 @@ class GlobalNS(Namespace):
     def _output(self, console: 'Search', args: Sequence[str]) -> int:
         try:
             groupname, path, *_ = args + [None]
-            path = path if path is not None else groupname
-            path = Path(path).with_suffix('.csv')
+            path = Path(path if path is not None else groupname)
 
             records = console.get(f'groups:{groupname}')
             if records is None:
                 logging.error(f'Group "{groupname}" does not exist')
                 return -1
 
-            records.to_csv(path)
-            logging.info(f'{len(records)} records saved to {path.name}')
+            match console.get('OUTPUTFORMAT'):
+                case 'csv':
+                    path = path.with_suffix('.csv')
+                    records.to_csv(path)
+                case 'excel':
+                    path = path.with_suffix('.xlsx')
+                    records.to_excel(path)
+
+            logging.info(f'{len(records)} records saved to {path}')
             return 0
 
         except ValueError:
@@ -314,13 +340,26 @@ class GlobalNS(Namespace):
     def _exit(self, console: 'Search', args: Sequence[str]) -> int:
         raise ExitEventLoop()
 
+    def _help(self, console: 'Search', args: Sequence[str]) -> int:
+        logging.info('Available commands:')
+        logging.info('- group <name>'.ljust(PADDING, ' ') + 'Enter group context')
+        logging.info('- output <group> [file]'.ljust(PADDING, ' ') + 'Save group records to file')
+
+    def _help_global(self, console: 'Search', args: Sequence[str]) -> int:
+        logging.info('- back'.ljust(PADDING, ' ') + 'Return to previous context')
+        logging.info('- help'.ljust(PADDING, ' ') + 'Prints this help')
+        logging.info('- exit'.ljust(PADDING, ' ') + 'Exit console')
+        return 0
+
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
             case 'group': return self._group(console, args)
             case 'output': return self._output(console, args)
+            case 'help': return self._help(console, args)
 
     def exec_global(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
+            case 'help': return self._help_global(console, args)
             case 'back': return self._back(console, args)
             case 'exit': return self._exit(console, args)
 
@@ -362,8 +401,7 @@ class Search:
             if result is not None:
                 return result
 
-        logging.error('Unrecognized command')
-        return None
+        raise UnknownCommand(command)
 
     def push_namespace(self, ns: Namespace) -> None:
         self._ns.append(ns)
@@ -385,6 +423,9 @@ class Search:
                 cmdline = sys.stdin.readline()
                 result = self.eval(cmdline)
 
+            except UnknownCommand as e:
+                logging.error('Unrecognized command {e.command}')
+
             except ExitEventLoop:
                 exited = True
 
@@ -393,7 +434,10 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
     parser = ArgumentParser(prog=name)
     parser.add_argument('-d', '--datadir', type=Path, required=True,
                         help='directory containing snapshot data')
-    parser.add_argument('-f', '--file', type=Path, help='file with commands to execute')
+    parser.add_argument('-i', '--import', dest='import_', nargs='+', type=Path,
+                        default=[], help='command modules to import')
+    parser.add_argument('-f', '--format', default='csv', choices=['csv', 'excel'],
+                        help='output file format')
     return parser
 
 
@@ -407,10 +451,20 @@ if __name__ == '__main__':
 
     search = Search()
     search.set('DATADIR', args.datadir)
+    search.set('OUTPUTFORMAT', args.format)
 
-    if args.file is not None:
-        with open(args.file, 'r') as f:
-            for line in f.readlines():
-                search.eval(line.strip())
+    for file in args.import_:
+        try:
+            with open(file, 'r') as f:
+                for i, line in enumerate(f.readlines()):
+                    line = line.strip()
+                    search.eval(line)
+
+        except UnknownCommand as e:
+            logging.error(f'{file.name}:{i}: unrecognized command {e.command}')
+
+        except ExitEventLoop:
+            break
+
     else:
         search.event_loop()
