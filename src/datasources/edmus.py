@@ -22,7 +22,6 @@ EDMUS_DATES_V5_7 = [
     'time_mri_date',
     'ms_onset',
     'compared_date',
-    'doubtful_date',
     'clinical_assessment_date',
     'date_of_birth',
     'first_exam',
@@ -98,7 +97,7 @@ def _normalize_string(s: str) -> str:
 
 def _transform_parse_dates(df: pd.DataFrame, datecols: Sequence[str]) -> pd.DataFrame:
     cols = [col for col in df.columns if col in datecols]
-    df.loc[:, cols] = df.loc[:, cols].apply(lambda x: pd.to_datetime(x, dayfirst=True))
+    df.loc[:, cols] = df.loc[:, cols].apply(lambda x: pd.to_datetime(x, format='%d/%m/%Y'))
 
 
 def _try_load_edmus_data_file(path: Path, indexes: Dict[str, str], datecols: Sequence[str] = None) -> pd.DataFrame:
