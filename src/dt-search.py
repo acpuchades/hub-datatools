@@ -135,10 +135,17 @@ class GroupNS(Namespace):
             datadir = console.get('DATADIR')
             def load_datafile(k): return load_data(datadir, k)
             df = load_cached(console, datafile, load_datafile)
+
             if rkey is not None and key != rkey:
+                if len(self._selected) > 0:
+                    selected = self._records.loc[self._selected]
+                    self._selected = selected.merge(df, left_on=key, right_on=rkey).index
                 self._records = self._records.merge(df, left_on=key, right_on=rkey)
                 logging.info(f'Joined fields from "{datafile}" on {key}={rkey}')
             else:
+                if len(self._selected) > 0:
+                    selected = self._records.loc[self._selected]
+                    self._selected = selected.merge(df, on=key).index
                 self._records = self._records.merge(df, on=key)
                 logging.info(f'Joined fields from "{datafile}" on {key}')
             return 0
@@ -204,6 +211,8 @@ class GroupNS(Namespace):
             return -1
 
         logging.info('Available columns:')
+        for name in self._records.index.names:
+            logging.info(f'* {name}')
         for name in self._records.columns:
             logging.info(f'- {name}')
         return 0
@@ -225,6 +234,7 @@ class GroupNS(Namespace):
 
             prevcount = len(self._selected)
             self._selected = self._selected.union(matched.index)
+            self._selected.names = self._records.index.names
             addcount = len(self._selected) - prevcount
             logging.info(f'{len(matched)} records matched, {addcount} added')
             return 0
@@ -248,6 +258,7 @@ class GroupNS(Namespace):
 
             prevcount = len(self._selected)
             self._selected = self._selected.difference(matched.index)
+            self._selected.names = self._records.index.names
             removecount = prevcount - len(self._selected)
             logging.info(f'{removecount} records removed, {len(self._selected)} left')
             return 0
