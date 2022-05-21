@@ -219,7 +219,27 @@ class GroupNS(Namespace):
             return 0
 
         except KeyError as e:
-            logging.error(f'Invalid columns: {e.args[0]}')
+            logging.error(f'Invalid fields: {e.args[0]}')
+            return -1
+
+    def _sort(self, console: 'Search', args: Sequence[str]) -> int:
+        if self._records is None:
+            logging.error('There are no records loaded yet')
+            return -1
+
+        if len(args) < 1:
+            logging.error('Sorting fields not specified')
+            return -1
+
+        try:
+            fields = list(map(lambda x: re.sub(r'^[+-]', '', x), args))
+            ascending = list(map(lambda x: not x.startswith('-'), args))
+            self._records.sort_values(fields, ascending=ascending, inplace=True)
+            logging.info('Records sorted')
+            return 0
+
+        except KeyError as e:
+            logging.error(f'Invalid fields: {e.args[0]}')
             return -1
 
     def _groupby(self, console: 'Search', args: Sequence[str]) -> int:
@@ -331,13 +351,14 @@ class GroupNS(Namespace):
 
     def _help(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info('Available commands:')
-        logging.info('- load <datafile | @groupname>'.ljust(PADDING, ' ') + 'Load records from source')
+        logging.info('- load <datafile | @group>'.ljust(PADDING, ' ') + 'Load records from source')
         logging.info(
-            '- join <datafile | @groupname> [key] [rkey]'.ljust(PADDING, ' ') + 'Join records from data file')
-        logging.info('- groupby <key>'.ljust(PADDING, ' ') + 'Enter groupby context with group key')
+            '- join <datafile | @group> <key> [rkey]'.ljust(PADDING, ' ') + 'Join records from data file')
+        logging.info('- groupby <keys>...'.ljust(PADDING, ' ') + 'Enter groupby context with group key')
         logging.info('- set <name> <expr>'.ljust(PADDING, ' ') + 'Add computed field with value')
         logging.info('- unset <name>'.ljust(PADDING, ' ') + 'Remove field from records')
         logging.info('- select <fields>...'.ljust(PADDING, ' ') + 'Select fields from records')
+        logging.info('- sort <fields>...'.ljust(PADDING, ' ') + 'Sort records by fields')
         logging.info('- showcols'.ljust(PADDING, ' ') + 'Show columns from records')
         logging.info('- include <all | expr>'.ljust(PADDING, ' ') + 'Add matching records')
         logging.info('- exclude <all | expr>'.ljust(PADDING, ' ') + 'Remove matching records')
@@ -351,6 +372,7 @@ class GroupNS(Namespace):
             case 'set': return self._set(console, args)
             case 'unset': return self._unset(console, args)
             case 'select': return self._select(console, args)
+            case 'sort': return self._sort(console, args)
             case 'showcols': return self._showcols(console, args)
             case 'include': return self._include(console, args)
             case 'exclude': return self._exclude(console, args)
