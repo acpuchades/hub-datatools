@@ -100,7 +100,10 @@ class GroupByContext(Context):
 
     @property
     def prompt(self) -> str:
-        return f'*{self._key}* ({len(self._grouped)})> '
+        if isinstance(self._key, str):
+            return f'({self._key}) [{len(self._grouped)}]> '
+        else:
+            return f'({", ".join(self._key)}) [{len(self._grouped)}]> '
 
     def _summarize(self, console: 'Search', args: Sequence[str]) -> int:
         try:
