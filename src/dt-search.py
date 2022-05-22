@@ -18,7 +18,7 @@ import console
 from serialize import load_data
 
 
-class Namespace:
+class Context:
 
     @abstractproperty
     def prompt(self) -> str:
@@ -68,10 +68,7 @@ def _show_dataframe(df: pd.DataFrame) -> None:
 
 def _show_dataframe_columns(df: pd.DataFrame) -> None:
     for name in df.index.names:
-        if name is None:
-            logging.info('* (index)')
-        else:
-            logging.info(f'* {name}')
+        logging.info(f'* {name}')
 
     for name in df.columns:
         logging.info(f'- {name}')
@@ -93,7 +90,7 @@ def _load_cached(console: 'Search', key: str, fn: Callable[[], Any]) -> Any:
     return value
 
 
-class GroupByNS(Namespace):
+class GroupByContext(Context):
 
     def __init__(self, key, records):
         self._key = key
@@ -156,19 +153,19 @@ def _load_from_origin(console: 'Search', origin: str) -> Optional[pd.DataFrame]:
     return records
 
 
-class GroupNS(Namespace):
+class GroupContext(Context):
 
     def __init__(self, groupname: str):
         self._groupname = groupname
         self._records = None
-        self._selected = pd.Index([])
+        self._included = pd.Index([])
 
     @ property
     def prompt(self) -> str:
         if self._records is None:
-            return f'{self._groupname} [*/*]> '
+            return f'{self._groupname} [-/-]> '
         else:
-            return f'{self._groupname} [{len(self._selected)}/{len(self._records)}]> '
+            return f'{self._groupname} [{len(self._included)}/{len(self._records)}]> '
 
     def _load(self, console: 'Search', args: Sequence[str]) -> int:
         if self._records is not None:
@@ -201,15 +198,15 @@ class GroupNS(Namespace):
             origin, key, rkey, *_ = args + [None]
             df = _load_from_origin(console, origin)
             if rkey is not None and key != rkey:
-                if len(self._selected) > 0:
-                    selected = self._records.loc[self._selected]
-                    self._selected = selected.merge(df, left_on=key, right_on=rkey).index
+                if len(self._included) > 0:
+                    selected = self._records.loc[self._included]
+                    self._included = selected.merge(df, left_on=key, right_on=rkey).index
                 self._records = self._records.merge(df, left_on=key, right_on=rkey)
                 logging.info(f'Joined fields from {origin} on {key}={rkey}')
             else:
-                if len(self._selected) > 0:
-                    selected = self._records.loc[self._selected]
-                    self._selected = selected.merge(df, on=key).index
+                if len(self._included) > 0:
+                    selected = self._records.loc[self._included]
+                    self._included = selected.merge(df, on=key).index
                 self._records = self._records.merge(df, on=key)
                 logging.info(f'Joined fields from {origin} on {key}')
             return 0
@@ -269,7 +266,7 @@ class GroupNS(Namespace):
             logging.error('Grouping key not specified')
             return -1
 
-        console.push_namespace(GroupByNS(args, self._records))
+        console.push_namespace(GroupByContext(args, self._records))
         return 0
 
     def _set(self, console: 'Search', args: Sequence[str]) -> int:
@@ -308,8 +305,9 @@ class GroupNS(Namespace):
             logging.error('There are no records loaded yet')
             return -1
 
+        included = self._records.loc[self._included]
         logging.info('Available columns:')
-        _show_dataframe_columns(self._records)
+        _show_dataframe_columns(included)
         return 0
 
     def _include(self, console: 'Search', args: Sequence[str]) -> int:
@@ -318,7 +316,7 @@ class GroupNS(Namespace):
             return -1
 
         if args[0] == 'all':
-            self._selected = self._records.index
+            self._included = self._records.index
             logging.info(f'{len(self._records)} records added')
             return 0
         else:
@@ -327,10 +325,10 @@ class GroupNS(Namespace):
             if matched is None:
                 return -1
 
-            prevcount = len(self._selected)
-            self._selected = self._selected.union(matched.index)
-            self._selected.names = self._records.index.names
-            addcount = len(self._selected) - prevcount
+            prevcount = len(self._included)
+            self._included = self._included.union(matched.index)
+            self._included.names = self._records.index.names
+            addcount = len(self._included) - prevcount
             logging.info(f'{len(matched)} records matched, {addcount} added')
             return 0
 
@@ -340,22 +338,22 @@ class GroupNS(Namespace):
             return -1
 
         if args[0] == 'all':
-            prevcount = len(self._selected)
-            self._selected = pd.Index([])
+            prevcount = len(self._included)
+            self._included = pd.Index([])
             logging.info(f'{prevcount} records removed')
             return 0
         else:
             query = ' '.join(args)
-            records = self._records.loc[self._selected]
+            records = self._records.loc[self._included]
             matched = _try_eval_query(records, query)
             if matched is None:
                 return -1
 
-            prevcount = len(self._selected)
-            self._selected = self._selected.difference(matched.index)
-            self._selected.names = self._records.index.names
-            removecount = prevcount - len(self._selected)
-            logging.info(f'{removecount} records removed, {len(self._selected)} left')
+            prevcount = len(self._included)
+            self._included = self._included.difference(matched.index)
+            self._included.names = self._records.index.names
+            removecount = prevcount - len(self._included)
+            logging.info(f'{removecount} records removed, {len(self._included)} left')
             return 0
 
     def _show(self, console: 'Search', args: Sequence[str]) -> int:
@@ -363,12 +361,17 @@ class GroupNS(Namespace):
             logging.error('There are no records loaded yet')
             return -1
 
-        _show_dataframe(self._records)
+        if len(self._included) == 0:
+            logging.info('No records were included yet')
+            return 0
+
+        included = self._records.loc[self._included]
+        _show_dataframe(included)
         return 0
 
     def _save(self, console: 'Search', args: Sequence[str]) -> int:
-        logging.info(f'{len(self._selected)} records saved as @{self._groupname}')
-        console.set(f'groups:{self._groupname}', self._records.loc[self._selected])
+        logging.info(f'{len(self._included)} records saved as @{self._groupname}')
+        console.set(f'groups:{self._groupname}', self._records.loc[self._included])
         console.pop_namespace()
         return 0
 
@@ -405,7 +408,7 @@ class GroupNS(Namespace):
         return None
 
 
-class GlobalNS(Namespace):
+class GlobalContext(Context):
 
     def __init__(self, prompt: str):
         self._prompt = prompt
@@ -418,10 +421,10 @@ class GlobalNS(Namespace):
         try:
             groupname, *_ = args
             if console.get(f'groups:{groupname}') is None:
-                console.push_namespace(GroupNS(groupname))
+                console.push_namespace(GroupContext(groupname))
                 return 0
             else:
-                logging.error(f'Group "{groupname}" already exists')
+                logging.error(f'Group {groupname} already exists')
                 return -1
 
         except ValueError:
@@ -529,11 +532,11 @@ class Search:
     def __init__(self, prompt='> '):
         self._names = {}
         self._vars = {}
-        self._ns = [GlobalNS(prompt=prompt)]
+        self._contexts = [GlobalContext(prompt=prompt)]
 
     @ property
     def prompt(self) -> str:
-        for ns in reversed(self._ns):
+        for ns in reversed(self._context):
             if ns.prompt:
                 return ns.prompt
 
@@ -548,15 +551,16 @@ class Search:
 
     def eval(self, cmdline: str) -> Optional[int]:
         cmdline = re.sub('#.*$', '', cmdline)
+        cmdline = re.sub('\s+', ' ', cmdline)
         command, *args = cmdline.strip().split(' ')
         if command == '':
             return None
 
-        result = self._ns[-1].exec(self, command, args)
+        result = self._context[-1].exec(self, command, args)
         if result is not None:
             return result
 
-        for ns in reversed(self._ns):
+        for ns in reversed(self._context):
             result = ns.exec_global(self, command, args)
             if result is not None:
                 return result
@@ -564,14 +568,14 @@ class Search:
         raise UnknownCommand(command)
 
     def push_namespace(self, ns: Namespace) -> None:
-        self._ns.append(ns)
+        self._context.append(ns)
         ns.install(self)
 
     def pop_namespace(self) -> bool:
-        if len(self._ns) <= 1:
+        if len(self._context) <= 1:
             return False
 
-        ns = self._ns.pop()
+        ns = self._context.pop()
         ns.uninstall(self)
         return True
 
@@ -595,8 +599,8 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
     parser = ArgumentParser(prog=name)
     parser.add_argument('-d', '--datadir', type=Path, required=True,
                         help='directory containing snapshot data')
-    parser.add_argument('-i', '--import', dest='import_', nargs='+', type=Path,
-                        default=[], help='command modules to import')
+    parser.add_argument('-i', '--import', metavar='IMPORT', dest='import_', nargs='+',
+                        type=Path, default=[], help='command modules to import')
     parser.add_argument('-f', '--format', default='csv', choices=['csv', 'excel'],
                         help='output file format')
     return parser
