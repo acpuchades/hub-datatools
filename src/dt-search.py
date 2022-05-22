@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import logging
+from os import terminal_size
 import re
 import readline
 import sys
@@ -12,7 +13,6 @@ from argparse import ArgumentParser
 from typing import Any, Callable, Dict, Optional, Sequence
 
 import pandas as pd
-from pandas.core.computation.ops import UndefinedVariableError
 
 import console
 from serialize import load_data
@@ -37,6 +37,10 @@ class Namespace:
         pass
 
 
+MAXWIDTH = 80
+PADDING = MAXWIDTH // 2
+
+
 class UnknownCommand(RuntimeError):
 
     def __init__(self, command, **kwargs):
@@ -56,6 +60,23 @@ def _try_eval_query(df: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
         return None
 
 
+def _show_dataframe(df: pd.DataFrame) -> None:
+    with pd.option_context('display.width', 120):
+        for line in str(df).split('\n'):
+            logging.info(line)
+
+
+def _show_dataframe_columns(df: pd.DataFrame) -> None:
+    for name in df.index.names:
+        if name is None:
+            logging.info('* (index)')
+        else:
+            logging.info(f'* {name}')
+
+    for name in df.columns:
+        logging.info(f'- {name}')
+
+
 def _try_eval_expr(df: pd.DataFrame, expr: str) -> Optional[pd.DataFrame]:
     try:
         return df.eval(expr)
@@ -70,9 +91,6 @@ def _load_cached(console: 'Search', key: str, fn: Callable[[], Any]) -> Any:
         value = fn(key)
         console.set(f'cache:{key}', value)
     return value
-
-
-PADDING = 40
 
 
 class GroupByNS(Namespace):
@@ -291,10 +309,7 @@ class GroupNS(Namespace):
             return -1
 
         logging.info('Available columns:')
-        for name in self._records.index.names:
-            logging.info(f'* {name}')
-        for name in self._records.columns:
-            logging.info(f'- {name}')
+        _show_dataframe_columns(self._records)
         return 0
 
     def _include(self, console: 'Search', args: Sequence[str]) -> int:
@@ -343,6 +358,14 @@ class GroupNS(Namespace):
             logging.info(f'{removecount} records removed, {len(self._selected)} left')
             return 0
 
+    def _show(self, console: 'Search', args: Sequence[str]) -> int:
+        if self._records is None:
+            logging.error('There are no records loaded yet')
+            return -1
+
+        _show_dataframe(self._records)
+        return 0
+
     def _save(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info(f'{len(self._selected)} records saved as @{self._groupname}')
         console.set(f'groups:{self._groupname}', self._records.loc[self._selected])
@@ -352,13 +375,13 @@ class GroupNS(Namespace):
     def _help(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info('Available commands:')
         logging.info('- load <datafile | @group>'.ljust(PADDING, ' ') + 'Load records from source')
-        logging.info(
-            '- join <datafile | @group> <key> [rkey]'.ljust(PADDING, ' ') + 'Join records from data file')
+        logging.info('- join <datafile | @group> <key> [rkey]'.ljust(PADDING, ' ') + 'Join records')
         logging.info('- groupby <keys>...'.ljust(PADDING, ' ') + 'Enter groupby context with group key')
         logging.info('- set <name> <expr>'.ljust(PADDING, ' ') + 'Add computed field with value')
         logging.info('- unset <name>'.ljust(PADDING, ' ') + 'Remove field from records')
         logging.info('- select <fields>...'.ljust(PADDING, ' ') + 'Select fields from records')
         logging.info('- sort <fields>...'.ljust(PADDING, ' ') + 'Sort records by fields')
+        logging.info('- show'.ljust(PADDING, ' ') + 'Show records in group')
         logging.info('- showcols'.ljust(PADDING, ' ') + 'Show columns from records')
         logging.info('- include <all | expr>'.ljust(PADDING, ' ') + 'Add matching records')
         logging.info('- exclude <all | expr>'.ljust(PADDING, ' ') + 'Remove matching records')
@@ -373,6 +396,7 @@ class GroupNS(Namespace):
             case 'unset': return self._unset(console, args)
             case 'select': return self._select(console, args)
             case 'sort': return self._sort(console, args)
+            case 'show': return self._show(console, args)
             case 'showcols': return self._showcols(console, args)
             case 'include': return self._include(console, args)
             case 'exclude': return self._exclude(console, args)
@@ -404,14 +428,50 @@ class GlobalNS(Namespace):
             logging.error('Group name not specified')
             return -1
 
+    def _show(self, console: 'Search', args: Sequence[str]) -> int:
+        try:
+            groupname, *_ = args
+            groupname = re.sub('^@', '', groupname)
+
+            records = console.get(f'groups:{groupname}')
+            if records is None:
+                logging.error(f'Group {groupname} does not exist')
+                return -1
+
+            _show_dataframe(records)
+            return 0
+
+        except ValueError:
+            logging.error('Group name not specified')
+            return -1
+
+    def _showcols(self, console: 'Search', args: Sequence[str]) -> int:
+        try:
+            groupname, *_ = args
+            groupname = re.sub('^@', '', groupname)
+
+            records = console.get(f'groups:{groupname}')
+            if records is None:
+                logging.error(f'Group {groupname} does not exist')
+                return -1
+
+            logging.info('Available columns:')
+            _show_dataframe_columns(records)
+            return 0
+
+        except ValueError:
+            logging.error('Group name not specified')
+            return -1
+
     def _output(self, console: 'Search', args: Sequence[str]) -> int:
         try:
             groupname, path, *_ = args + [None]
+            groupname = re.sub('^@', '', groupname)
             path = Path(path if path is not None else groupname)
 
             records = console.get(f'groups:{groupname}')
             if records is None:
-                logging.error(f'Group "{groupname}" does not exist')
+                logging.error(f'Group {groupname} does not exist')
                 return -1
 
             match console.get('OUTPUTFORMAT'):
@@ -426,7 +486,7 @@ class GlobalNS(Namespace):
             return 0
 
         except ValueError:
-            logging.error('No group name was given')
+            logging.error('Group name not specified')
             return -1
 
     def _back(self, console: 'Search', args: Sequence[str]) -> int:
@@ -439,7 +499,9 @@ class GlobalNS(Namespace):
     def _help(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info('Available commands:')
         logging.info('- group <name>'.ljust(PADDING, ' ') + 'Enter group context')
-        logging.info('- output <group> [file]'.ljust(PADDING, ' ') + 'Save group records to file')
+        logging.info('- show <@group>'.ljust(PADDING, ' ') + 'Show group records')
+        logging.info('- showcols <@group>'.ljust(PADDING, ' ') + 'Show columns in group')
+        logging.info('- output <@group> [file]'.ljust(PADDING, ' ') + 'Save group records to file')
 
     def _help_global(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info('- back'.ljust(PADDING, ' ') + 'Return to previous context')
@@ -450,6 +512,8 @@ class GlobalNS(Namespace):
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
             case 'group': return self._group(console, args)
+            case 'show': return self._show(console, args)
+            case 'showcols': return self._showcols(console, args)
             case 'output': return self._output(console, args)
             case 'help': return self._help(console, args)
 
