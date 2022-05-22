@@ -170,6 +170,12 @@ class GroupContext(Context):
         else:
             return f'{self._groupname} [{len(self._included)}/{len(self._records)}]> '
 
+    def install(self, console: 'Search') -> None:
+        prev = console.get(f'data:group/{self._groupname}')
+        if prev is not None:
+            self._records = prev._records
+            self._included = prev._included
+
     def _load(self, console: 'Search', args: Sequence[str]) -> int:
         if self._records is not None:
             logging.error('There are records loaded already')
@@ -409,6 +415,9 @@ class GroupContext(Context):
             case 'save': return self._save(console, args)
             case 'help': return self._help(console, args)
         return None
+
+    def uninstall(self, console: 'Search') -> None:
+        console.set(f'data:group/{self._groupname}', self)
 
 
 class GlobalContext(Context):
