@@ -6,7 +6,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import Dict, Sequence
 
-from datasources import DataSource, datasource
+from hub_datatools.datasources import DataSource, datasource
 
 EDMUS_DATES_V5_7 = [
     'onset_date',
@@ -21,6 +21,7 @@ EDMUS_DATES_V5_7 = [
     'time_clinical_mcdonald_date',
     'time_mri_date',
     'ms_onset',
+    'progression_onset',
     'compared_date',
     'clinical_assessment_date',
     'date_of_birth',

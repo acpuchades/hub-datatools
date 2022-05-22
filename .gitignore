@@ -154,8 +154,11 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Snapshot data
-*.sqlite
-*.pickle
-*.csv
-*.png
+# Data files
+data/
+sample/
+**.sqlite
+**.pickle
+**.csv
+**.png
+**.dtsearch

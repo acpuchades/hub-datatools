@@ -1,13 +1,14 @@
-import sqlite3
-from pandas import DataFrame
-from sqlite3 import Connection
-
 import logging
+import sqlite3
 from argparse import ArgumentParser, Namespace
+from sqlite3 import Connection
 from typing import Dict
 
-from datasources import DataSource, datasource
-from transform import *
+import pandas as pd
+from pandas import DataFrame
+
+from hub_datatools.transform import *
+from hub_datatools.datasources import DataSource, datasource
 
 
 PATIENT_DATA_TABLE = 'pacientes'

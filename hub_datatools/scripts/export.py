@@ -8,11 +8,10 @@ from typing import Any, Dict
 
 from pandas import DataFrame, ExcelWriter
 
-import console
-from errors import *
-from serialize import load_data
-from projects import get_project_class, get_project_names, load_project_modules
-
+from hub_datatools import console
+from hub_datatools.datasources import load_datasource_modules
+from hub_datatools.projects import *
+from hub_datatools.serialize import load_data
 
 FORMAT_SUFFIXES = {
     'csv': '.csv',
@@ -69,16 +68,16 @@ EXPORT_FORMATS = {
 DEFAULT_FORMAT = 'csv'
 
 
-def export_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: str,
-                replace: bool = False, **kwargs: Dict[str, Any]) -> None:
+def _export_data(data: DataFrame | Dict[str, DataFrame], path: Path, format: str,
+                 replace: bool = False, **kwargs: Dict[str, Any]) -> None:
     exportfn = EXPORT_FORMATS.get(format)
     if exportfn is None:
         raise NotImplementedError('Unsupported output file format')
     exportfn(data, path, replace, **kwargs)
 
 
-def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
-    parser = ArgumentParser(prog=name)
+def _make_argument_parser() -> ArgumentParser:
+    parser = ArgumentParser()
     parser.add_argument('-d', '--datadir', required=True, help='directory containing snapshot data')
 
     group = parser.add_mutually_exclusive_group()
@@ -98,11 +97,12 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
     return parser
 
 
-if __name__ == '__main__':
+def main() -> None:
     try:
         console.initialize()
         load_project_modules()
-        parser = make_argument_parser()
+
+        parser = _make_argument_parser()
         args = parser.parse_args()
 
         logger = logging.getLogger()
@@ -112,8 +112,10 @@ if __name__ == '__main__':
             projectclass = get_project_class(args.project, logger=logger)
             project = projectclass(datadir=args.datadir)
             data = project.export_data()
+
         elif args.source is not None:
             data = load_data(args.datadir, args.source)
+
         else:
             parser.error('no data sources to be exported were given')
 
@@ -138,18 +140,13 @@ if __name__ == '__main__':
         if format is None:
             format = DEFAULT_FORMAT
 
-        export_data(data, args.output, format=format, replace=args.replace)
-
+        _export_data(data, args.output, format=format, replace=args.replace)
         logging.info('Done')
 
-    except FileNotFoundError as e:
+    except Exception as e:
         logging.error(e)
-        sys.exit(ExitCode.NotFound.value)
+        sys.exit(-1)
 
-    except NotImplementedError as e:
-        logging.error(str(e))
-        sys.exit(ExitCode.NotImplemented.value)
 
-    except FileExistsError as e:
-        logging.error(str(e))
-        sys.exit(ExitCode.AlreadyExists.value)
+if __name__ == '__main__':
+    main()

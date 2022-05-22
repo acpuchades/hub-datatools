@@ -1,8 +1,10 @@
+import pandas as pd
+from pandas import DataFrame
+
 import logging
 from argparse import ArgumentParser, Namespace
-import pandas as pd
 
-from datasources import DataSource, datasource
+from hub_datatools.datasources import DataSource, datasource
 
 
 PATIENT_ID_COLUMN = 'Pacient (NHC)'
@@ -43,7 +45,7 @@ FFILL_COLUMNS = [
 ]
 
 
-def _load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
+def _load_episodes_from_df(df: DataFrame) -> DataFrame:
     logging.info('HUB_URG: Loading ER episode data')
 
     df = df.copy()
@@ -56,7 +58,7 @@ def _load_episodes_from_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _load_diagnoses_from_df(df: pd.DataFrame) -> pd.DataFrame:
+def _load_diagnoses_from_df(df: DataFrame) -> DataFrame:
     logging.info('HUB_URG: Loading ER diagnoses data')
 
     df = df.copy()[DIAGNOSES_COLUMNS.keys()]
@@ -82,7 +84,7 @@ class HUBUrg(DataSource):
     def is_active(args: Namespace) -> bool:
         return args.hub_urg is not None
 
-    def load_data(self, args: Namespace) -> pd.DataFrame:
+    def load_data(self, args: Namespace) -> DataFrame:
         df = pd.read_excel(args.hub_urg, sheet_name=args.hub_urg_excel_tab,
                            header=args.hub_urg_column_row - 1)
         df[FFILL_COLUMNS] = df[FFILL_COLUMNS].ffill()

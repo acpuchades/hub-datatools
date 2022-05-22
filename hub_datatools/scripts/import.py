@@ -4,14 +4,13 @@ import sys
 import logging
 from argparse import ArgumentParser
 
-import console
-from errors import *
-from serialize import save_data
-from datasources import get_datasource_class, get_datasource_names, load_datasource_modules
+from hub_datatools import console
+from hub_datatools.datasources import *
+from hub_datatools.serialize import save_data
 
 
-def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
-    parser = ArgumentParser(prog=name)
+def _make_argument_parser() -> ArgumentParser:
+    parser = ArgumentParser()
     parser.add_argument('-d', '--datadir', required=True, help='directory to store snapshot data')
     parser.add_argument('-r', '--replace', action='store_true',
                         help='replace snapshot data if already exists')
@@ -24,11 +23,12 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
     return parser
 
 
-if __name__ == '__main__':
+def main() -> None:
     try:
         console.initialize()
         load_datasource_modules()
-        parser = make_argument_parser()
+
+        parser = _make_argument_parser()
         args = parser.parse_args()
 
         logger = logging.getLogger()
@@ -50,13 +50,10 @@ if __name__ == '__main__':
 
         logging.info('Done')
 
-    except FileExistsError:
-        logging.error('Data file already exists')
-        sys.exit(ExitCode.AlreadyExists.value)
-
-    except FileNotFoundError as e:
+    except Exception as e:
         logging.error(e)
-        sys.exit(ExitCode.NotFound.value)
+        sys.exit(-1)
 
-    except ValueError as e:
-        parser.error(e)
+
+if __name__ == '__main__':
+    main()

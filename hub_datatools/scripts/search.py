@@ -13,9 +13,10 @@ from argparse import ArgumentParser
 from typing import Any, Callable, Dict, Optional, Sequence
 
 import pandas as pd
+from pandas import DataFrame, Index
 
-import console
-from serialize import load_data
+from hub_datatools import console
+from hub_datatools.serialize import load_data
 
 
 class Context:
@@ -52,7 +53,7 @@ class ExitEventLoop(Exception):
     pass
 
 
-def _try_eval_query(df: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
+def _try_eval_query(df: DataFrame, query: str) -> Optional[DataFrame]:
     try:
         return df.query(query)
     except Exception as e:
@@ -60,13 +61,12 @@ def _try_eval_query(df: pd.DataFrame, query: str) -> Optional[pd.DataFrame]:
         return None
 
 
-def _show_dataframe(df: pd.DataFrame) -> None:
-    with pd.option_context('display.width', 120):
-        for line in str(df).split('\n'):
-            logging.info(line)
+def _show_dataframe(df: DataFrame) -> None:
+    for line in str(df).split('\n'):
+        logging.info(line)
 
 
-def _show_dataframe_columns(df: pd.DataFrame) -> None:
+def _show_dataframe_columns(df: DataFrame) -> None:
     for name in df.index.names:
         logging.info(f'* {name}')
 
@@ -74,7 +74,7 @@ def _show_dataframe_columns(df: pd.DataFrame) -> None:
         logging.info(f'- {name}')
 
 
-def _try_eval_expr(df: pd.DataFrame, expr: str) -> Optional[pd.DataFrame]:
+def _try_eval_expr(df: DataFrame, expr: str) -> Optional[DataFrame]:
     try:
         return df.eval(expr)
     except Exception as e:
@@ -138,7 +138,7 @@ class GroupByContext(Context):
             case 'ungroup': return self._ungroup(console, args)
 
 
-def _load_from_origin(console: 'Search', origin: str) -> Optional[pd.DataFrame]:
+def _load_from_origin(console: 'Search', origin: str) -> Optional[DataFrame]:
     if origin.startswith('@'):
         groupname = origin[1:]
         records = console.get(f'groups:{groupname}')
@@ -161,7 +161,7 @@ class GroupContext(Context):
     def __init__(self, groupname: str):
         self._groupname = groupname
         self._records = None
-        self._included = pd.Index([])
+        self._included = Index([])
 
     @ property
     def prompt(self) -> str:
@@ -348,7 +348,7 @@ class GroupContext(Context):
 
         if args[0] == 'all':
             prevcount = len(self._included)
-            self._included = pd.Index([])
+            self._included = Index([])
             logging.info(f'{prevcount} records removed')
             return 0
         else:
@@ -404,7 +404,7 @@ class GroupContext(Context):
         logging.info('- showcols'.ljust(PADDING, ' ') + 'Show columns from records')
         logging.info('- include <all | expr>'.ljust(PADDING, ' ') + 'Add matching records')
         logging.info('- exclude <all | expr>'.ljust(PADDING, ' ') + 'Remove matching records')
-        logging.info('- save'.ljust(PADDING, ' ') + 'Save selected records and exit group context')
+        logging.info('- save'.ljust(PADDING, ' ') + 'Save records and leave context')
 
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
@@ -610,8 +610,8 @@ class Search:
                 break
 
 
-def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
-    parser = ArgumentParser(prog=name)
+def _make_argument_parser() -> ArgumentParser:
+    parser = ArgumentParser()
     parser.add_argument('-d', '--datadir', type=Path, required=True,
                         help='directory containing snapshot data')
     parser.add_argument('-i', '--import', metavar='IMPORT', dest='import_', nargs='+',
@@ -621,30 +621,39 @@ def make_argument_parser(name: str = sys.argv[0]) -> ArgumentParser:
     return parser
 
 
+def main() -> None:
+    try:
+        console.initialize()
+
+        parser = _make_argument_parser()
+        args = parser.parse_args()
+
+        logger = logging.getLogger()
+        logger.setLevel(logging.INFO)
+
+        search = Search()
+        search.set('DATADIR', args.datadir)
+        search.set('OUTPUTFORMAT', args.format)
+
+        for file in args.import_:
+            try:
+                with open(file, 'r') as f:
+                    for i, line in enumerate(f.readlines()):
+                        search.eval(line.strip())
+
+            except UnknownCommand as e:
+                logging.error(f'{file.name}:{i}: unrecognized command {e.command}')
+
+            except ExitEventLoop:
+                break
+
+        else:
+            search.event_loop()
+
+    except Exception as e:
+        logging.error(e)
+        sys.exit(-1)
+
+
 if __name__ == '__main__':
-    console.initialize()
-
-    parser = make_argument_parser()
-    args = parser.parse_args()
-
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-
-    search = Search()
-    search.set('DATADIR', args.datadir)
-    search.set('OUTPUTFORMAT', args.format)
-
-    for file in args.import_:
-        try:
-            with open(file, 'r') as f:
-                for i, line in enumerate(f.readlines()):
-                    search.eval(line.strip())
-
-        except UnknownCommand as e:
-            logging.error(f'{file.name}:{i}: unrecognized command {e.command}')
-
-        except ExitEventLoop:
-            break
-
-    else:
-        search.event_loop()
+    main()

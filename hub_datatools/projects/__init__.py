@@ -33,7 +33,7 @@ def get_project_class(name: str) -> Optional[type[Project]]:
 
 
 def load_project_modules() -> None:
-    projectdir = Path(__file__).parent
-    for modname in projectdir.iterdir():
+    projectsdir = Path(__file__).parent
+    for modname in projectsdir.iterdir():
         if not modname.name.startswith('_'):
-            import_module(f'projects.{modname.stem}')
+            import_module(f'hub_datatools.datasources.{modname.stem}')

@@ -1,8 +1,9 @@
 from argparse import ArgumentParser, Namespace
 from abc import ABC, abstractmethod, abstractstaticmethod
-from importlib import import_module
 from pathlib import Path
+from importlib import import_module
 from typing import Dict, List, Optional
+
 
 from pandas import DataFrame
 
@@ -45,4 +46,4 @@ def load_datasource_modules() -> None:
     sourcesdir = Path(__file__).parent
     for modname in sourcesdir.iterdir():
         if not modname.name.startswith('_'):
-            import_module(f'datasources.{modname.stem}')
+            import_module(f'hub_datatools.datasources.{modname.stem}')
