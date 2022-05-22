@@ -124,12 +124,12 @@ class GroupByContext(Context):
                 data = self._records.join(summary, on=self._key, rsuffix='_')
                 self._records.loc[:, cols] = data.loc[:, cols]
                 logging.info(f'Added {len(cols)} fields')
-            console.pop_namespace()
+            console.pop_context()
             return 0
 
         except Exception as e:
             logging.error(f'Ungrouping error: {e.args[0]}')
-            console.pop_namespace()
+            console.pop_context()
             return -1
 
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> int:
@@ -275,7 +275,7 @@ class GroupContext(Context):
             logging.error('Grouping key not specified')
             return -1
 
-        console.push_namespace(GroupByContext(args, self._records))
+        console.push_context(GroupByContext(args, self._records))
         return 0
 
     def _set(self, console: 'Search', args: Sequence[str]) -> int:
@@ -379,9 +379,16 @@ class GroupContext(Context):
         return 0
 
     def _save(self, console: 'Search', args: Sequence[str]) -> int:
+        if self._records is None:
+            logging.error('There are no records loaded yet')
+            return -1
+
+        if console.get(f'groups:{self._groupname}') is not None:
+            logging.warning(f'Group {self._groupname} already exists and will be replaced')
+
         logging.info(f'{len(self._included)} records saved as @{self._groupname}')
         console.set(f'groups:{self._groupname}', self._records.loc[self._included])
-        console.pop_namespace()
+        console.pop_context()
         return 0
 
     def _help(self, console: 'Search', args: Sequence[str]) -> int:
@@ -432,12 +439,8 @@ class GlobalContext(Context):
     def _group(self, console: 'Search', args: Sequence[str]) -> int:
         try:
             groupname, *_ = args
-            if console.get(f'groups:{groupname}') is None:
-                console.push_namespace(GroupContext(groupname))
-                return 0
-            else:
-                logging.error(f'Group {groupname} already exists')
-                return -1
+            console.push_context(GroupContext(groupname))
+            return 0
 
         except ValueError:
             logging.error('Group name not specified')
@@ -505,7 +508,7 @@ class GlobalContext(Context):
             return -1
 
     def _back(self, console: 'Search', args: Sequence[str]) -> int:
-        console.pop_namespace()
+        console.pop_context()
         return 0
 
     def _exit(self, console: 'Search', args: Sequence[str]) -> int:
@@ -548,9 +551,9 @@ class Search:
 
     @ property
     def prompt(self) -> str:
-        for ns in reversed(self._context):
-            if ns.prompt:
-                return ns.prompt
+        for ctx in reversed(self._contexts):
+            if ctx.prompt:
+                return ctx.prompt
 
     def get(self, name: str) -> Optional[Any]:
         return self._vars.get(name)
@@ -568,27 +571,27 @@ class Search:
         if command == '':
             return None
 
-        result = self._context[-1].exec(self, command, args)
+        result = self._contexts[-1].exec(self, command, args)
         if result is not None:
             return result
 
-        for ns in reversed(self._context):
-            result = ns.exec_global(self, command, args)
+        for ctx in reversed(self._contexts):
+            result = ctx.exec_global(self, command, args)
             if result is not None:
                 return result
 
         raise UnknownCommand(command)
 
-    def push_namespace(self, ns: Namespace) -> None:
-        self._context.append(ns)
-        ns.install(self)
+    def push_context(self, ctx: Context) -> None:
+        self._contexts.append(ctx)
+        ctx.install(self)
 
-    def pop_namespace(self) -> bool:
-        if len(self._context) <= 1:
+    def pop_context(self) -> bool:
+        if len(self._contexts) <= 1:
             return False
 
-        ns = self._context.pop()
-        ns.uninstall(self)
+        ctx = self._contexts.pop()
+        ctx.uninstall(self)
         return True
 
     def event_loop(self) -> None:
