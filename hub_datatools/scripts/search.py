@@ -108,7 +108,7 @@ class GroupByContext(Context):
         try:
             name, col, fn, *_ = args
             self._values[name] = NamedAgg(col, aggfunc=fn)
-            logging.info(f'Added aggregating field `{name}` as `{fn}({col})`')
+            logging.info(f'Added aggregating field `{name}` = `{fn}({col})`')
             return 0
 
         except ValueError:
@@ -318,7 +318,7 @@ class GroupContext(Context):
             name, *expr = args
             expr = ' '.join(expr)
             self._records[name] = _try_eval_expr(self._records, expr)
-            logging.info(f'Added computed field `{name}` as `{expr}`')
+            logging.info(f'Added field `{name}` = `{expr}`')
             return 0
 
         except ValueError:
