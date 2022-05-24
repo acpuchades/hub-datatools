@@ -132,10 +132,16 @@ class GroupByContext(Context):
             console.pop_context()
             return -1
 
+    def _help(self, console: 'Search', args: Sequence[str]) -> int:
+        logging.info('Available commands:')
+        logging.info('- summarize <name> <field> <summary>'.ljust(PADDING, ' ') + 'Add aggregating field')
+        logging.info('- ungroup'.ljust(PADDING, ' ') + 'Apply changes and leave')
+
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> int:
         match command:
             case 'summarize': return self._summarize(console, args)
             case 'ungroup': return self._ungroup(console, args)
+            case 'help': return self._help(console, args)
 
 
 def _load_from_origin(console: 'Search', origin: str) -> Optional[DataFrame]:
