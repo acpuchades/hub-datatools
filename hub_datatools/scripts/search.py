@@ -109,7 +109,7 @@ class GroupByContext(Context):
         try:
             name, col, agg, *_ = args
             self._values[name] = pd.NamedAgg(col, aggfunc=agg)
-            logging.info(f'Added aggregating field {name} as {agg}({col})')
+            logging.info(f'Added aggregating field `{name}` as `{agg}({col})`')
             return 0
 
         except ValueError:
@@ -123,7 +123,7 @@ class GroupByContext(Context):
                 summary = self._records.groupby(self._key).agg(**self._values)
                 data = self._records.join(summary, on=self._key, rsuffix='_')
                 self._records.loc[:, cols] = data.loc[:, cols]
-                logging.info(f'Added {len(cols)} fields')
+                logging.info(f'Added {len(cols)} new fields')
             console.pop_context()
             return 0
 
@@ -193,7 +193,7 @@ class GroupContext(Context):
             if self._records is None:
                 return -1
 
-            logging.info(f'Loaded {len(self._records)} records from {origin}')
+            logging.info(f'Read {len(self._records)} records from {origin}')
             return 0
 
         except ValueError:
@@ -293,7 +293,7 @@ class GroupContext(Context):
             name, *expr = args
             expr = ' '.join(expr)
             self._records[name] = _try_eval_expr(self._records, expr)
-            logging.info(f'Added computed field {name}')
+            logging.info(f'Added computed field `{name}`')
             return 0
 
         except ValueError:
@@ -308,7 +308,7 @@ class GroupContext(Context):
         try:
             name, *_ = args
             self._records.drop(columns=[name], inplace=True)
-            logging.info(f'Removed field {name}')
+            logging.info(f'Removed field `{name}`')
             return 0
 
         except ValueError:
@@ -332,7 +332,7 @@ class GroupContext(Context):
 
         if args[0] == 'all':
             self._included = self._records.index
-            logging.info(f'{len(self._records)} records added')
+            logging.info(f'Added all {len(self._records)} records to group')
             return 0
         else:
             query = ' '.join(args)
@@ -344,7 +344,7 @@ class GroupContext(Context):
             self._included = self._included.union(matched.index)
             self._included.names = self._records.index.names
             addcount = len(self._included) - prevcount
-            logging.info(f'{len(matched)} records matched, {addcount} added')
+            logging.info(f'Found {len(matched)} matching records, {addcount} added')
             return 0
 
     def _exclude(self, console: 'Search', args: Sequence[str]) -> int:
@@ -355,7 +355,7 @@ class GroupContext(Context):
         if args[0] == 'all':
             prevcount = len(self._included)
             self._included = Index([])
-            logging.info(f'{prevcount} records removed')
+            logging.info(f'Removed all {prevcount} records')
             return 0
         else:
             query = ' '.join(args)
@@ -368,7 +368,7 @@ class GroupContext(Context):
             self._included = self._included.difference(matched.index)
             self._included.names = self._records.index.names
             removecount = prevcount - len(self._included)
-            logging.info(f'{removecount} records removed, {len(self._included)} left')
+            logging.info(f'Removed {removecount} records, {len(self._included)} left')
             return 0
 
     def _show(self, console: 'Search', args: Sequence[str]) -> int:
@@ -392,7 +392,7 @@ class GroupContext(Context):
         if console.get(f'groups:{self._groupname}') is not None:
             logging.warning(f'Group {self._groupname} already exists and will be replaced')
 
-        logging.info(f'{len(self._included)} records saved as @{self._groupname}')
+        logging.info(f'Saved {len(self._included)} records as @{self._groupname}')
         console.set(f'groups:{self._groupname}', self._records.loc[self._included])
         console.pop_context()
         return 0
@@ -620,7 +620,7 @@ def _make_argument_parser() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument('-d', '--datadir', type=Path, required=True,
                         help='directory containing snapshot data')
-    parser.add_argument('-i', '--import', metavar='IMPORT', dest='import_', nargs='+',
+    parser.add_argument('-i', '--import', metavar='IMPORT', dest='imports', nargs='+',
                         type=Path, default=[], help='command modules to import')
     parser.add_argument('-f', '--format', default='csv', choices=['csv', 'excel'],
                         help='output file format')

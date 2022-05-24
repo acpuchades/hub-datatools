@@ -1,10 +1,10 @@
-import logging
 import colorama
-
+import logging
 from colorama import Fore, Style
+from logging import Formatter, StreamHandler
 
 
-class CustomFormatter(logging.Formatter):
+class CustomFormatter(Formatter):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -28,7 +28,7 @@ def initialize() -> None:
     colorama.init()
 
     fmt = '[%(levelname)s] %(message)s'
-    stdout_handler = logging.StreamHandler()
+    stdout_handler = StreamHandler()
     stdout_handler.setFormatter(CustomFormatter(fmt))
 
     logger = logging.getLogger()
