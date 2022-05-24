@@ -318,7 +318,7 @@ class GroupContext(Context):
             name, *expr = args
             expr = ' '.join(expr)
             self._records[name] = _try_eval_expr(self._records, expr)
-            logging.info(f'Added computed field `{name}`')
+            logging.info(f'Added computed field `{name}` as `{expr}`')
             return 0
 
         except ValueError:

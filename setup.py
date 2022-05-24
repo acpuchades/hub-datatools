@@ -7,7 +7,7 @@ root_dir = Path(__file__).parent
 long_description = root_dir.joinpath('README.md').read_text()
 
 setup(name='hub-datatools',
-      version='1.1.1',
+      version='1.1.2',
       author='Alejandro Caravaca Puchades',
       author_email='acaravacapuchades@icloud.com',
       url='https://github.com/acpuchades/hub-datatools',
