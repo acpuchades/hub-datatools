@@ -464,6 +464,11 @@ class GlobalContext(Context):
     def prompt(self) -> str:
         return self._prompt
 
+    def _echo(self, console: 'Search', args: Sequence[str]) -> int:
+        message = ' '.join(args)
+        logging.info(message)
+        return 0
+
     def _group(self, console: 'Search', args: Sequence[str]) -> int:
         try:
             groupname, *_ = args
@@ -565,6 +570,7 @@ class GlobalContext(Context):
 
     def exec_global(self, console: 'Search', command: str, args: Sequence[str]) -> Optional[int]:
         match command:
+            case 'echo': return self._echo(console, args)
             case 'help': return self._help_global(console, args)
             case 'back': return self._back(console, args)
             case 'exit': return self._exit(console, args)
