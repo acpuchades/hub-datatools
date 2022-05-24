@@ -641,11 +641,18 @@ def main() -> None:
         search.set('DATADIR', args.datadir)
         search.set('OUTPUTFORMAT', args.format)
 
-        for file in args.import_:
+        for file in args.imports:
+            if not file.exists() and file.suffix == '':
+                file = file.with_suffix('.dtsearch')
+
             try:
                 with open(file, 'r') as f:
+                    logging.info(f'Loading commands from {file}')
                     for i, line in enumerate(f.readlines()):
                         search.eval(line.strip())
+
+            except FileNotFoundError as e:
+                logging.warning(f'File "{file}" does not exist')
 
             except UnknownCommand as e:
                 logging.error(f'{file.name}:{i}: unrecognized command {e.command}')
