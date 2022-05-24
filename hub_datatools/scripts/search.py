@@ -101,9 +101,9 @@ class GroupByContext(Context):
     @property
     def prompt(self) -> str:
         if isinstance(self._key, str):
-            return f'({self._key}) [{len(self._grouped)}]> '
+            return f'({self._key}) [{self._grouped.ngroups}]> '
         else:
-            return f'({", ".join(self._key)}) [{len(self._grouped)}]> '
+            return f'({", ".join(self._key)}) [{self._grouped.ngroups}]> '
 
     def _summarize(self, console: 'Search', args: Sequence[str]) -> int:
         try:
@@ -116,7 +116,7 @@ class GroupByContext(Context):
             logging.error('Field names and/or summary function not specified')
             return -1
 
-    def _ungroup(self, console: 'Search', args: Sequence[int]) -> int:
+    def _ungroup(self, console: 'Search', args: Sequence[str]) -> int:
         try:
             cols = self._values.keys()
             if len(cols) > 0:
