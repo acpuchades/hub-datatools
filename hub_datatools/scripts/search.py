@@ -93,9 +93,9 @@ class GroupByContext(Context):
 
     def __init__(self, key, records):
         self._key = key
+        self._values = {}
         self._records = records
         self._grouped = records.groupby(key)
-        self._values = pd.DataFrame()
 
     @property
     def prompt(self) -> str:
@@ -107,8 +107,7 @@ class GroupByContext(Context):
     def _summarize(self, console: 'Search', args: Sequence[str]) -> int:
         try:
             name, col, fn, *_ = args
-            kwargs = {name: NamedAgg(col, aggfunc=fn)}
-            self._values[name] = self._grouped.agg(**kwargs)
+            self._values[name] = NamedAgg(col, aggfunc=fn)
             logging.info(f'Added aggregating field `{name}` as `{fn}({col})`')
             return 0
 
@@ -123,9 +122,10 @@ class GroupByContext(Context):
 
     def _ungroup(self, console: 'Search', args: Sequence[str]) -> int:
         try:
-            cols = self._values.columns.names
+            cols = self._values.keys()
             if len(cols) > 0:
-                df = self._records.join(self._values, on=self._key, rsuffix='_')
+                df = self._grouped.agg(**self._values)
+                df = self._records.join(df, on=self._key, rsuffix='_')
                 self._records.loc[:, cols] = df.loc[:, cols]
                 logging.info(f'Added {len(cols)} new fields')
             console.pop_context()
@@ -140,7 +140,7 @@ class GroupByContext(Context):
         try:
             groupname, *_ = args
             groupname = re.sub('^@?', '', groupname)
-            df = self._records.join(self._values, on=self._key, rsuffix='_')
+            df = self._grouped.agg(**self._values)
             console.set(f'groups:{groupname}', df)
             logging.info(f'Saved {len(df)} records as @{groupname}')
             return 0
@@ -205,6 +205,7 @@ class GroupContext(Context):
         group = console.get(f'groups:{self._groupname}')
         if group is not None:
             self._records = group
+            self._included = group.index
 
     def _load(self, console: 'Search', args: Sequence[str]) -> int:
         if self._records is not None:
