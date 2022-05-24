@@ -166,9 +166,9 @@ class GroupContext(Context):
     @ property
     def prompt(self) -> str:
         if self._records is None:
-            return f'{self._groupname} [-/-]> '
+            return f'@{self._groupname} [-/-]> '
         else:
-            return f'{self._groupname} [{len(self._included)}/{len(self._records)}]> '
+            return f'@{self._groupname} [{len(self._included)}/{len(self._records)}]> '
 
     def install(self, console: 'Search') -> None:
         prev = console.get(f'data:group/{self._groupname}')
