@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import logging
-from os import terminal_size
 import re
 import readline
 import sys
@@ -13,7 +12,7 @@ from argparse import ArgumentParser
 from typing import Any, Callable, Dict, Optional, Sequence
 
 import pandas as pd
-from pandas import DataFrame, Index
+from pandas import DataFrame, Index, NamedAgg
 
 from hub_datatools import console
 from hub_datatools.serialize import load_data
@@ -61,6 +60,14 @@ def _try_eval_query(df: DataFrame, query: str) -> Optional[DataFrame]:
         return None
 
 
+def _try_eval_expr(df: DataFrame, expr: str) -> Optional[DataFrame]:
+    try:
+        return df.eval(expr)
+    except Exception as e:
+        logging.error(f'Invalid expression: {e.args[0]}')
+        return None
+
+
 def _show_dataframe(df: DataFrame) -> None:
     for line in str(df).split('\n'):
         logging.info(line)
@@ -72,14 +79,6 @@ def _show_dataframe_columns(df: DataFrame) -> None:
 
     for name in df.columns:
         logging.info(f'- {name}')
-
-
-def _try_eval_expr(df: DataFrame, expr: str) -> Optional[DataFrame]:
-    try:
-        return df.eval(expr)
-    except Exception as e:
-        logging.error(f'Invalid expression: {e.args[0]}')
-        return None
 
 
 def _load_cached(console: 'Search', key: str, fn: Callable[[], Any]) -> Any:
@@ -94,9 +93,9 @@ class GroupByContext(Context):
 
     def __init__(self, key, records):
         self._key = key
-        self._values = {}
         self._records = records
         self._grouped = records.groupby(key)
+        self._values = pd.DataFrame()
 
     @property
     def prompt(self) -> str:
@@ -107,22 +106,27 @@ class GroupByContext(Context):
 
     def _summarize(self, console: 'Search', args: Sequence[str]) -> int:
         try:
-            name, col, agg, *_ = args
-            self._values[name] = pd.NamedAgg(col, aggfunc=agg)
-            logging.info(f'Added aggregating field `{name}` as `{agg}({col})`')
+            name, col, fn, *_ = args
+            kwargs = {name: NamedAgg(col, aggfunc=fn)}
+            self._values[name] = self._grouped.agg(**kwargs)
+            logging.info(f'Added aggregating field `{name}` as `{fn}({col})`')
             return 0
 
         except ValueError:
             logging.error('Field names and/or summary function not specified')
             return -1
 
+        except Exception as e:
+            logging.error(f'Ungrouping error: {e.args[0]}')
+            console.pop_context()
+            return -1
+
     def _ungroup(self, console: 'Search', args: Sequence[str]) -> int:
         try:
-            cols = self._values.keys()
+            cols = self._values.columns.names
             if len(cols) > 0:
-                summary = self._records.groupby(self._key).agg(**self._values)
-                data = self._records.join(summary, on=self._key, rsuffix='_')
-                self._records.loc[:, cols] = data.loc[:, cols]
+                df = self._records.join(self._values, on=self._key, rsuffix='_')
+                self._records.loc[:, cols] = df.loc[:, cols]
                 logging.info(f'Added {len(cols)} new fields')
             console.pop_context()
             return 0
@@ -132,15 +136,30 @@ class GroupByContext(Context):
             console.pop_context()
             return -1
 
+    def _save(self, console: 'Search', args: Sequence[str]) -> int:
+        try:
+            groupname, *_ = args
+            groupname = re.sub('^@?', '', groupname)
+            df = self._records.join(self._values, on=self._key, rsuffix='_')
+            console.set(f'groups:{groupname}', df)
+            logging.info(f'Saved {len(df)} records as @{groupname}')
+            return 0
+
+        except ValueError:
+            logging.error('Group name not specified')
+            return -1
+
     def _help(self, console: 'Search', args: Sequence[str]) -> int:
         logging.info('Available commands:')
         logging.info('- summarize <name> <field> <summary>'.ljust(PADDING, ' ') + 'Add aggregating field')
         logging.info('- ungroup'.ljust(PADDING, ' ') + 'Apply changes and leave')
+        logging.info('- save <@groupname>'.ljust(PADDING, ' ') + 'Save grouped records with name')
 
     def exec(self, console: 'Search', command: str, args: Sequence[str]) -> int:
         match command:
             case 'summarize': return self._summarize(console, args)
             case 'ungroup': return self._ungroup(console, args)
+            case 'save': return self._save(console, args)
             case 'help': return self._help(console, args)
 
 
@@ -181,6 +200,11 @@ class GroupContext(Context):
         if prev is not None:
             self._records = prev._records
             self._included = prev._included
+            return
+
+        group = console.get(f'groups:{self._groupname}')
+        if group is not None:
+            self._records = group
 
     def _load(self, console: 'Search', args: Sequence[str]) -> int:
         if self._records is not None:
@@ -388,9 +412,6 @@ class GroupContext(Context):
         if self._records is None:
             logging.error('There are no records loaded yet')
             return -1
-
-        if console.get(f'groups:{self._groupname}') is not None:
-            logging.warning(f'Group {self._groupname} already exists and will be replaced')
 
         logging.info(f'Saved {len(self._included)} records as @{self._groupname}')
         console.set(f'groups:{self._groupname}', self._records.loc[self._included])
