@@ -168,7 +168,7 @@ def _load_patients_sql(con: Connection) -> DataFrame:
 
 
 def _load_alsfrs_data_sql(con: Connection) -> DataFrame:
-    logging.info('Loading follow up data')
+    logging.info('UFMN: Loading follow up data')
 
     als_data = pd.read_sql_query(f'SELECT * FROM {ALS_DATA_TABLE}', con)
     als_data.drop(columns=['created_datetime', 'updated_datetime'], inplace=True)

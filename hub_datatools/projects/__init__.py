@@ -36,4 +36,4 @@ def load_project_modules() -> None:
     projectsdir = Path(__file__).parent
     for modname in projectsdir.iterdir():
         if not modname.name.startswith('_'):
-            import_module(f'hub_datatools.datasources.{modname.stem}')
+            import_module(f'hub_datatools.projects.{modname.stem}')

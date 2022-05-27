@@ -109,7 +109,7 @@ def main() -> None:
         logger.setLevel(logging.DEBUG)
 
         if args.project is not None:
-            projectclass = get_project_class(args.project, logger=logger)
+            projectclass = get_project_class(args.project)
             project = projectclass(datadir=args.datadir)
             data = project.export_data()
 
