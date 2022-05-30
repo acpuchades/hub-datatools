@@ -60,13 +60,19 @@ ALSFRS_RESP_COLUMNS = [
 
 
 def _calculate_kings_from_followup(df: pd.DataFrame) -> pd.Series:
-    bulbar = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1)
-    upper = (df[['escritura', 'cortar_sin_peg']] < 4).any(axis=1)
-    lower = df.caminar < 4
-    endstage = df.indicacion_peg | (df.disnea == 0) | (df.insuf_resp < 4)
-    regions = bulbar.astype('Int64') + upper.astype('Int64') + lower.astype('Int64')
-    endstage = endstage.astype('Int64') * 4
-    return endstage.where(endstage == 4, regions)
+    result = pd.DataFrame([], index=df.index)
+    result['bulbar'] = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1).astype('Int64')
+    result['upper'] = (df[['escritura', 'cortar_sin_peg']] < 4).any(axis=1).astype('Int64')
+    result['lower'] = (df.caminar < 4).astype('Int64')
+    result['regions'] = result.bulbar + result.upper + result.lower
+    result['nutr_failure'] = df.indicacion_peg
+    result['resp_failure'] = (df.disnea == 0) | (df.insuf_resp < 4)
+
+    result['stage'] = None
+    result.loc[result.regions.notna(), 'stage'] = result.regions.apply(str)
+    result.loc[result.nutr_failure == True, 'stage'] = '4A'
+    result.loc[result.resp_failure == True, 'stage'] = '4B'
+    return result.stage
 
 
 def _calculate_mitos_from_followup(df: pd.DataFrame) -> pd.Series:
