@@ -146,6 +146,8 @@ class PrecisionALS(Project):
         self._hosp_diagnoses.index.names = ['episode_id', 'dx_code']
 
     def _export_patient_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting patient data')
+
         return DataFrame({
             'birthdate': self._patients.fecha_nacimiento,
             'sex': self._patients.sexo.map(SEX_CATEGORIES),
@@ -170,6 +172,8 @@ class PrecisionALS(Project):
         })
 
     def _export_genetic_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting genetic data')
+
         return DataFrame({
             'c9_status': self._patients.estado_c9.map(GENE_STATUS_CATEGORIES),
             'sod1_status': self._patients.estado_sod1.map(GENE_STATUS_CATEGORIES),
@@ -177,6 +181,8 @@ class PrecisionALS(Project):
         })
 
     def _export_alsfrs_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting ALSFRS-R assesments data')
+
         return DataFrame({
             'speech': self._alsfrs_data.lenguaje,
             'salivation': self._alsfrs_data.salivacion,
@@ -202,6 +208,8 @@ class PrecisionALS(Project):
         })
 
     def _export_respiratory_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting respiratory assesments data')
+
         return DataFrame({
             'abg_ph': self._resp_data.ph_sangre_arterial,
             'abg_po2': self._resp_data.pao2,
@@ -230,6 +238,8 @@ class PrecisionALS(Project):
         })
 
     def _export_nutritional_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting nutritional assesments data')
+
         return DataFrame({
             'weight': self._nutr_data.peso,
             'height': self._nutr_data.estatura,
@@ -252,6 +262,8 @@ class PrecisionALS(Project):
         })
 
     def _export_ER_episodes_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting ER episodes data')
+
         return DataFrame({
             'admission_date': self._urg_episodes.inicio_episodio,
             'discharge_date': self._urg_episodes.fin_episodio,
@@ -259,11 +271,15 @@ class PrecisionALS(Project):
         })
 
     def _export_ER_diagnoses_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting ER diagnoses data')
+
         return DataFrame({
             'dx_description': self._urg_diagnoses.descripcion_dx,
         })
 
     def _export_hospital_episodes_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting hospitalization episodes data')
+
         return DataFrame({
             'admission_date': self._hosp_episodes.inicio_episodio,
             'discharge_date': self._hosp_episodes.fin_episodio,
@@ -272,6 +288,8 @@ class PrecisionALS(Project):
         })
 
     def _export_hospital_diagnoses_data(self) -> DataFrame:
+        logging.info('Precision ALS: Exporting hospitalization diagnoses data')
+
         return DataFrame({
             'dx_description': self._hosp_diagnoses.descripcion_dx,
         })
