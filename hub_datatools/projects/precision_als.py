@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from typing import Dict
 
@@ -202,9 +203,24 @@ class PrecisionALS(Project):
             'alsfrs_fine_motor': self._alsfrs_data.alsfrs_fine_motor_c,
             'alsfrs_gross_motor': self._alsfrs_data.alsfrs_gross_motor_c,
             'alsfrs_resp': self._alsfrs_data.alsfrs_resp_c,
-            'alsfrs_total': self._alsfrs_data.alsfrs_total_c,
-            'kings': self._alsfrs_data.kings_c,
-            'mitos': self._alsfrs_data.mitos_c,
+            'alsfrs_total_orig': self._alsfrs_data.alsfrs_total,
+            'alsfrs_c': self._alsfrs_data.alsfrs_total_c,
+            'alsfrs_total': self._alsfrs_data.alsfrs_total_c.where(
+                self._alsfrs_data.alsfrs_total_c.notna(),
+                self._alsfrs_data.alsfrs_total
+            ),
+            'kings_orig': self._alsfrs_data.kings,
+            'kings_c': self._alsfrs_data.kings_c,
+            'kings': self._alsfrs_data.kings_c.where(
+                self._alsfrs_data.kings_c.notna(),
+                self._alsfrs_data.kings
+            ),
+            'mitos_orig': self._alsfrs_data.mitos,
+            'mitos_c': self._alsfrs_data.mitos_c,
+            'mitos': self._alsfrs_data.mitos_c.where(
+                self._alsfrs_data.mitos_c.notna(),
+                self._alsfrs_data.mitos
+            ),
         })
 
     def _export_respiratory_data(self) -> DataFrame:
