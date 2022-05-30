@@ -98,18 +98,22 @@ class PrecisionALS(Project):
 
     def __init__(self, datadir: Path):
         patients = load_data(datadir, 'ufmn/patients')
+        patients = patients[patients.fecha_dx.notna()]
 
         alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
         nutr_data = load_data(datadir, 'ufmn/nutr')
         resp_data = load_data(datadir, 'ufmn/resp')
+
         followups = load_followup_data(datadir, alsfrs_data, nutr_data, resp_data)
+        followups = followups.merge(patients, on='id_paciente')
+        followups = followups[followups.fecha_dx.notna()]
 
         urg_episodes = load_data(datadir, 'hub_urg/episodes')
         urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
         hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
         hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
 
-        self._patients = patients[patients.fecha_dx.notna()]
+        self._patients = patients
         self._patients.index.name = 'patient_id'
 
         self._alsfrs_data = (alsfrs_data.reset_index()
@@ -203,24 +207,14 @@ class PrecisionALS(Project):
             'alsfrs_fine_motor': self._alsfrs_data.alsfrs_fine_motor_c,
             'alsfrs_gross_motor': self._alsfrs_data.alsfrs_gross_motor_c,
             'alsfrs_resp': self._alsfrs_data.alsfrs_resp_c,
-            'alsfrs_total_orig': self._alsfrs_data.alsfrs_total,
-            'alsfrs_c': self._alsfrs_data.alsfrs_total_c,
+            # 'alsfrs_total_orig': self._alsfrs_data.alsfrs_total,
+            # 'alsfrs_c': self._alsfrs_data.alsfrs_total_c,
             'alsfrs_total': self._alsfrs_data.alsfrs_total_c.where(
                 self._alsfrs_data.alsfrs_total_c.notna(),
                 self._alsfrs_data.alsfrs_total
             ),
-            'kings_orig': self._alsfrs_data.kings,
-            'kings_c': self._alsfrs_data.kings_c,
-            'kings': self._alsfrs_data.kings_c.where(
-                self._alsfrs_data.kings_c.notna(),
-                self._alsfrs_data.kings
-            ),
-            'mitos_orig': self._alsfrs_data.mitos,
-            'mitos_c': self._alsfrs_data.mitos_c,
-            'mitos': self._alsfrs_data.mitos_c.where(
-                self._alsfrs_data.mitos_c.notna(),
-                self._alsfrs_data.mitos
-            ),
+            'kings': self._alsfrs_data.kings_c,
+            'mitos': self._alsfrs_data.mitos_c,
         })
 
     def _export_respiratory_data(self) -> DataFrame:

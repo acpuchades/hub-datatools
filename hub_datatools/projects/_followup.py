@@ -120,8 +120,8 @@ def load_followup_data(datadir: Path = None, alsfrs_data: pd.DataFrame = None,
     followups.dropna(subset=['id_paciente', 'fecha_visita'], inplace=True)
 
     followups = (followups.set_index(['id_paciente', 'fecha_visita'])
-                          .groupby(level=[0, 1]).bfill().reset_index()
-                          .drop_duplicates(['id_paciente', 'fecha_visita']))
+                 .groupby(level=[0, 1]).bfill().reset_index()
+                 .drop_duplicates(['id_paciente', 'fecha_visita']))
 
     _add_calculated_fields(followups, inplace=True)
     return followups
