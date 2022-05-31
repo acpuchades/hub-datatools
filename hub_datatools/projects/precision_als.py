@@ -9,6 +9,22 @@ from hub_datatools.projects import Project, project
 from hub_datatools.projects._followup import load_followup_data
 
 
+ALSFRS_FIELDS = [
+    'lenguaje',
+    'salivacion',
+    'deglucion',
+    'escritura',
+    # 'cortar_con_peg',
+    # 'cortar_sin_peg',
+    'vestido',
+    'cama',
+    'caminar',
+    'subir_escaleras',
+    'disnea',
+    'ortopnea',
+    'insuf_resp',
+]
+
 GENE_FIELDS = {
     'C9orf72': 'estado_c9',
     'SOD1': 'estado_sod1',
@@ -101,6 +117,8 @@ class PrecisionALS(Project):
         patients = patients[patients.fecha_dx.notna()]
 
         alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
+        alsfrs_data.dropna(how='all', subset=ALSFRS_FIELDS, inplace=True)
+
         nutr_data = load_data(datadir, 'ufmn/nutr')
         resp_data = load_data(datadir, 'ufmn/resp')
 
@@ -118,16 +136,16 @@ class PrecisionALS(Project):
 
         self._alsfrs_data = (alsfrs_data.reset_index()
                              .merge(followups, on=['id_paciente', 'fecha_visita'], suffixes=[None, '_x'])
-                             .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assesment_date'})
-                             .set_index(['patient_id', 'assesment_date']).sort_index())
+                             .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assessment_date'})
+                             .set_index(['patient_id', 'assessment_date']).sort_index())
 
         self._nutr_data = (nutr_data.reset_index()
-                           .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assesment_date'})
-                           .set_index(['patient_id', 'assesment_date']).sort_index())
+                           .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assessment_date'})
+                           .set_index(['patient_id', 'assessment_date']).sort_index())
 
         self._resp_data = (resp_data.reset_index()
-                           .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assesment_date'})
-                           .set_index(['patient_id', 'assesment_date']).sort_index())
+                           .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assessment_date'})
+                           .set_index(['patient_id', 'assessment_date']).sort_index())
 
         self._followups = (followups.reset_index()
                            .rename(columns={'id_paciente': 'patient_id'}))
