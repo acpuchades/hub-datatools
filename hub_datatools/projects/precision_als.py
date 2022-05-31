@@ -171,8 +171,8 @@ class PrecisionALS(Project):
             'riluzole_received': self._patients.riluzol,
             'riluzole_start': self._patients.inicio_riluzol,
             'last_followup': self._followups.groupby('patient_id').fecha_visita.max(),
-            'niv_support': self._followups[self._followups.insuf_resp == 1].groupby('patient_id').fecha_visita.min(),
-            'imv_support': self._followups[self._followups.insuf_resp == 0].groupby('patient_id').fecha_visita.min(),
+            'niv_support': self._alsfrs_data[self._alsfrs_data.insuf_resp == 1].reset_index().groupby('patient_id').assessment_date.min(),
+            'imv_support': self._alsfrs_data[self._alsfrs_data.insuf_resp == 0].reset_index().groupby('patient_id').assessment_date.min(),
             'death': self._patients.fecha_exitus,
         })
 
