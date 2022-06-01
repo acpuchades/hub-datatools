@@ -114,7 +114,7 @@ class PrecisionALS(Project):
 
     def __init__(self, datadir: Path):
         patients = load_data(datadir, 'ufmn/patients')
-        patients = patients[patients.fecha_dx.notna()]
+        self._patients = patients = patients[patients.fecha_dx.notna()]
 
         alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
         alsfrs_data.dropna(how='all', subset=ALSFRS_FIELDS, inplace=True)
@@ -124,49 +124,32 @@ class PrecisionALS(Project):
 
         followups = load_followup_data(datadir, alsfrs_data, nutr_data, resp_data)
         followups = followups.merge(patients, on='id_paciente')
-        followups = followups[followups.fecha_dx.notna()]
+        self._followups = followups = followups[followups.fecha_dx.notna()]
 
         urg_episodes = load_data(datadir, 'hub_urg/episodes')
-        urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
         hosp_episodes = load_data(datadir, 'hub_hosp/episodes')
-        hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
-
-        self._patients = patients
-        self._patients.index.name = 'patient_id'
+        self._urg_diagnoses = load_data(datadir, 'hub_urg/diagnoses')
+        self._hosp_diagnoses = load_data(datadir, 'hub_hosp/diagnoses')
 
         self._alsfrs_data = (alsfrs_data.reset_index()
                              .merge(followups, on=['id_paciente', 'fecha_visita'], suffixes=[None, '_x'])
-                             .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assessment_date'})
-                             .set_index(['patient_id', 'assessment_date']).sort_index())
+                             .set_index(['id_paciente', 'fecha_visita']).sort_index())
 
         self._nutr_data = (nutr_data.reset_index()
-                           .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assessment_date'})
-                           .set_index(['patient_id', 'assessment_date']).sort_index())
+                           .set_index(['id_paciente', 'fecha_visita']).sort_index())
 
         self._resp_data = (resp_data.reset_index()
-                           .rename(columns={'id_paciente': 'patient_id', 'fecha_visita': 'assessment_date'})
-                           .set_index(['patient_id', 'assessment_date']).sort_index())
-
-        self._followups = (followups.reset_index()
-                           .rename(columns={'id_paciente': 'patient_id'}))
+                           .set_index(['id_paciente', 'fecha_visita']).sort_index())
 
         self._urg_episodes = (urg_episodes.reset_index()
                               .merge(self._patients.reset_index(), on='nhc')
-                              .rename(columns={'id_episodio': 'episode_id'})
-                              .sort_values(['patient_id', 'inicio_episodio'])
-                              .set_index(['patient_id', 'episode_id']))
-
-        self._urg_diagnoses = urg_diagnoses
-        self._urg_diagnoses.index.names = ['episode_id', 'dx_code']
+                              .sort_values(['id_paciente', 'inicio_episodio'])
+                              .set_index(['id_paciente', 'id_episodio']))
 
         self._hosp_episodes = (hosp_episodes.reset_index()
                                .merge(self._patients.reset_index(), on='nhc')
-                               .rename(columns={'id_episodio': 'episode_id'})
-                               .sort_values(['patient_id', 'inicio_episodio'])
-                               .set_index(['patient_id', 'episode_id']))
-
-        self._hosp_diagnoses = hosp_diagnoses
-        self._hosp_diagnoses.index.names = ['episode_id', 'dx_code']
+                               .sort_values(['id_paciente', 'inicio_episodio'])
+                               .set_index(['id_paciente', 'id_episodio']))
 
     def _export_patient_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting patient data')
@@ -188,11 +171,11 @@ class PrecisionALS(Project):
             'dx_date': self._patients.fecha_dx,
             'riluzole_received': self._patients.riluzol,
             'riluzole_start': self._patients.inicio_riluzol,
-            'last_followup': self._followups.groupby('patient_id').fecha_visita.max(),
-            'niv_support': self._alsfrs_data[self._alsfrs_data.insuf_resp == 1].reset_index().groupby('patient_id').assessment_date.min(),
-            'imv_support': self._alsfrs_data[self._alsfrs_data.insuf_resp == 0].reset_index().groupby('patient_id').assessment_date.min(),
+            'last_followup': self._followups.groupby('id_paciente').fecha_visita.max(),
+            'niv_support': self._alsfrs_data[self._alsfrs_data.insuf_resp == 1].reset_index().groupby('id_paciente').fecha_visita.min(),
+            'imv_support': self._alsfrs_data[self._alsfrs_data.insuf_resp == 0].reset_index().groupby('id_paciente').fecha_visita.min(),
             'death': self._patients.fecha_exitus,
-        })
+        }).rename_axis('patient_id')
 
     def _export_genetic_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting genetic data')
@@ -201,7 +184,7 @@ class PrecisionALS(Project):
             'c9_status': self._patients.estado_c9.map(GENE_STATUS_CATEGORIES),
             'sod1_status': self._patients.estado_sod1.map(GENE_STATUS_CATEGORIES),
             'atxn2_status': self._patients.estado_atxn2.map(GENE_STATUS_CATEGORIES),
-        })
+        }).rename_axis('patient_id')
 
     def _export_alsfrs_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting ALSFRS-R assesments data')
@@ -225,15 +208,15 @@ class PrecisionALS(Project):
             'alsfrs_fine_motor': self._alsfrs_data.alsfrs_fine_motor_c,
             'alsfrs_gross_motor': self._alsfrs_data.alsfrs_gross_motor_c,
             'alsfrs_resp': self._alsfrs_data.alsfrs_resp_c,
-            # 'alsfrs_total_orig': self._alsfrs_data.alsfrs_total,
-            # 'alsfrs_c': self._alsfrs_data.alsfrs_total_c,
             'alsfrs_total': self._alsfrs_data.alsfrs_total_c.where(
                 self._alsfrs_data.alsfrs_total_c.notna(),
                 self._alsfrs_data.alsfrs_total
             ),
-            'kings': self._alsfrs_data.kings_c,
-            'mitos': self._alsfrs_data.mitos_c,
-        })
+            'kings': self._alsfrs_data.kings,
+            'kings_c': self._alsfrs_data.kings_c,
+            'mitos': self._alsfrs_data.mitos,
+            'mitos_c': self._alsfrs_data.mitos_c,
+        }).rename_axis(['patient_id', 'assessment_date'])
 
     def _export_respiratory_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting respiratory assesments data')
@@ -263,7 +246,7 @@ class PrecisionALS(Project):
             'psng_non_obstr_apneas': self._resp_data.sas_apneas_no_claramente_obstructivas,
             'psng_central_apneas': self._resp_data.sas_apneas_centrales,
             'psng_mixed_apneas': self._resp_data.sas_apneas_mixtas,
-        })
+        }).rename_axis(['patient_id', 'assessment_date'])
 
     def _export_nutritional_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting nutritional assesments data')
@@ -287,7 +270,7 @@ class PrecisionALS(Project):
             'enteric_supplementation_start': self._nutr_data.inicio_supl_enteral,
             'constipation': self._nutr_data.estreñimiento,
             'laxative_usage': self._nutr_data.laxante,
-        })
+        }).rename_axis(['patient_id', 'assessment_date'])
 
     def _export_ER_episodes_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting ER episodes data')
@@ -296,14 +279,14 @@ class PrecisionALS(Project):
             'admission_date': self._urg_episodes.inicio_episodio,
             'discharge_date': self._urg_episodes.fin_episodio,
             'discharge_type': self._urg_episodes.destino_alta.map(URG_DISCHARGE_TYPE_CATEGORIES),
-        })
+        }).rename_axis(['patient_id', 'episode_id'])
 
     def _export_ER_diagnoses_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting ER diagnoses data')
 
         return DataFrame({
             'dx_description': self._urg_diagnoses.descripcion_dx,
-        })
+        }).rename_axis(['episode_id', 'dx_code'])
 
     def _export_hospital_episodes_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting hospitalization episodes data')
@@ -313,14 +296,14 @@ class PrecisionALS(Project):
             'discharge_date': self._hosp_episodes.fin_episodio,
             'discharge_type': self._hosp_episodes.destino_alta.map(HOSP_DISCHARGE_TYPE_CATEGORIES),
             'discharge_department': self._hosp_episodes.servicio_alta,
-        })
+        }).rename_axis(['patient_id', 'episode_id'])
 
     def _export_hospital_diagnoses_data(self) -> DataFrame:
         logging.info('Precision ALS: Exporting hospitalization diagnoses data')
 
         return DataFrame({
             'dx_description': self._hosp_diagnoses.descripcion_dx,
-        })
+        }).rename_axis(['episode_id', 'dx_code'])
 
     def export_data(self) -> Dict[str, DataFrame]:
         return {
