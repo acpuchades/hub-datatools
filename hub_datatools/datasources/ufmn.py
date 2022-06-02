@@ -204,6 +204,8 @@ def _load_resp_data_sql(con: Connection) -> DataFrame:
 
 
 def _clean_patient_data(df: DataFrame) -> None:
+    df.loc['7f906d52-8c4f-11e9-8c23-a5c3d8474f8f', 'fecha_exitus'] = None  # exitus debido a eutanasia
+
     apply_transform_pipeline(df, 'sexo', OPT_ENUM_PIPELINE, inplace=True)
     apply_transform_pipeline(df, 'exitus', OPT_BOOL_PIPELINE, inplace=True)
     apply_transform_pipeline(df, 'fecha_exitus', OPT_DATE_PIPELINE, inplace=True)
