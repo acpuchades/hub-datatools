@@ -57,9 +57,9 @@ SMOKING_CATEGORIES = {
 COGNITIVE_DX_CATEGORIES = {
     'DTA': 'AD',
     'DFT': 'DFT',
-    'DCL-Cognitivo': 'MCI-Cognitive',
-    'DCL-Conductual': 'MCI-Behavioral',
-    'DCL-Mixto': 'MCI-Mixed',
+    'DCL-Cognitivo': 'MCI',
+    'DCL-Conductual': 'MBI',
+    'DCL-Mixto': 'MCI+MBI',
     'Normal': 'Normal',
     'Otros': 'Other',
 }
@@ -120,7 +120,7 @@ URG_DISCHARGE_TYPE_CATEGORIES = {
 class PrecisionALS(Project):
 
     def __init__(self, datadir: Path):
-        patients = load_data(datadir, 'ufmn/patients')
+        patients = load_data(datadir, 'ufmn/patients').sort_index()
         self._patients = patients = patients[patients.fecha_dx.notna()]
 
         alsfrs_data = load_data(datadir, 'ufmn/alsfrs')
@@ -131,6 +131,7 @@ class PrecisionALS(Project):
 
         followups = load_followup_data(datadir, alsfrs_data, nutr_data, resp_data)
         followups = followups.merge(patients, on='id_paciente')
+        followups = followups.set_index('id_paciente').sort_index()
         self._followups = followups = followups[followups.fecha_dx.notna()]
 
         urg_episodes = load_data(datadir, 'hub_urg/episodes')
@@ -202,8 +203,8 @@ class PrecisionALS(Project):
             'swallowing': self._alsfrs_data.deglucion,
             'handwriting': self._alsfrs_data.escritura,
             'cutting': self._alsfrs_data.cortar,
-            'cutting_w_peg': self._alsfrs_data.cortar_con_peg,
-            'cutting_wo_peg': self._alsfrs_data.cortar_sin_peg,
+            'cutting_peg': self._alsfrs_data.cortar_con_peg,
+            'cutting_no_peg': self._alsfrs_data.cortar_sin_peg,
             'dressing': self._alsfrs_data.vestido,
             'bed': self._alsfrs_data.cama,
             'walking': self._alsfrs_data.caminar,
@@ -214,11 +215,13 @@ class PrecisionALS(Project):
             'alsfrs_bulbar': self._alsfrs_data.alsfrs_bulbar_c,
             'alsfrs_fine_motor': self._alsfrs_data.alsfrs_fine_motor_c,
             'alsfrs_gross_motor': self._alsfrs_data.alsfrs_gross_motor_c,
-            'alsfrs_resp': self._alsfrs_data.alsfrs_resp_c,
+            'alsfrs_respiratory': self._alsfrs_data.alsfrs_respiratory_c,
             'alsfrs_total': self._alsfrs_data.alsfrs_total_c.where(
                 self._alsfrs_data.alsfrs_total_c.notna(),
                 self._alsfrs_data.alsfrs_total
             ),
+            'peg_carrier': self._alsfrs_data.portador_peg,
+            'peg_indicated': self._alsfrs_data.indicacion_peg,
             'kings': self._alsfrs_data.kings,
             'kings_c': self._alsfrs_data.kings_c,
             'mitos': self._alsfrs_data.mitos,

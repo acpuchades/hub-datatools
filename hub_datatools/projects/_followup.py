@@ -59,7 +59,7 @@ ALSFRS_RESP_COLUMNS = [
 ]
 
 
-def _calculate_kings_from_followup(df: pd.DataFrame) -> pd.Series:
+def _calculate_kings_from_alsfrs(df: pd.DataFrame) -> pd.Series:
     result = pd.DataFrame([], index=df.index)
     result['bulbar'] = (df[['lenguaje', 'salivacion', 'deglucion']] < 4).any(axis=1).astype('Int64')
     result['upper'] = (df[['escritura', 'cortar_sin_peg']] < 4).any(axis=1).astype('Int64')
@@ -75,7 +75,7 @@ def _calculate_kings_from_followup(df: pd.DataFrame) -> pd.Series:
     return result.stage
 
 
-def _calculate_mitos_from_followup(df: pd.DataFrame) -> pd.Series:
+def _calculate_mitos_from_alsfrs(df: pd.DataFrame) -> pd.Series:
     walking_selfcare = (df.caminar <= 1) | (df.vestido <= 1)
     swallowing = df.deglucion <= 1
     communicating = (df.lenguaje <= 1) | (df.escritura <= 1)
@@ -98,11 +98,11 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
     df['alsfrs_bulbar_c'] = df[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_fine_motor_c'] = df[ALSFRS_FINE_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_gross_motor_c'] = df[ALSFRS_GROSS_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-    df['alsfrs_resp_c'] = df[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+    df['alsfrs_respiratory_c'] = df[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_total_c'] = df[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
 
-    df['kings_c'] = _calculate_kings_from_followup(df)
-    df['mitos_c'] = _calculate_mitos_from_followup(df)
+    df['kings_c'] = _calculate_kings_from_alsfrs(df)
+    df['mitos_c'] = _calculate_mitos_from_alsfrs(df)
 
     if not inplace:
         return df

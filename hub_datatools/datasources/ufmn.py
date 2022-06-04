@@ -74,7 +74,7 @@ MN_INVOLVEMENT_CATEGORIES = {
     'UMN': 'MNS',
     'LMN': 'MNI',
     'BMN': 'MNS+MNI',
-    'UMN->BMN': 'MNS+MNI',
+    'UMN->BMN': 'MNS',
 }
 
 MN_PREDOMINANCE_CATEGORIES = {
@@ -96,8 +96,10 @@ WEAKNESS_PATTERN_CATEGORIES = {
     'MMSS Y MMII': 'MMSS+MMII',
     'AMBAS IZQUIERDA': 'MMSS+MMII',
     'GENERALIZADO': 'MMSS+MMII',
+    'GENERALIZADA': 'MMSS+MMII',
     'BULBAR': 'Bulbar',
     'RESPIRATORIO': 'Respiratory',
+    'RESPIRATORIA': 'Respiratory',
 }
 
 GENE_STATUS_NORMAL_VALUE = 'Normal'
