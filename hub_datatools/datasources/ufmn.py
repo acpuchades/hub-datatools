@@ -28,6 +28,13 @@ WORKING_STATUS_CATEGORIES = {
     'Otra': 'Otro',
 }
 
+DYSPHAGIA_CATEGORIES = {
+    'No': 'No',
+    'Sí sólidos': 'Sólidos',
+    'Sí líquidos': 'Líquidos',
+    'Sí líquidos y sólidos': 'Sólidos+Líquidos',
+}
+
 SMOKE_CATEGORIES = {
     'Fumador': 'Activo',
     'Exfumador': 'Exfumador',
@@ -340,7 +347,7 @@ def _clean_nutr_data(df: DataFrame) -> None:
     apply_transform_pipeline(df, 'fecha_complicacion_peg', OPT_DATE_PIPELINE, inplace=True)
     apply_transform_pipeline(df, 'retirada', OPT_BOOL_PIPELINE, True)
     apply_transform_pipeline(df, 'fecha_retirada_peg', OPT_DATE_PIPELINE, inplace=True)
-    apply_transform_pipeline(df, 'disfagia', OPT_BOOL_PIPELINE, inplace=True)
+    apply_transform_pipeline(df, 'disfagia', OPT_ENUM_PIPELINE, values=DYSPHAGIA_CATEGORIES, inplace=True)
     apply_transform_pipeline(df, 'espesante', OPT_BOOL_PIPELINE, inplace=True)
     apply_transform_pipeline(df, 'fecha_inicio_espesante', OPT_DATE_PIPELINE, True)
     apply_transform_pipeline(df, 'suplementacion_nutricional_oral', OPT_BOOL_PIPELINE, inplace=True)

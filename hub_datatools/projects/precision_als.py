@@ -36,6 +36,13 @@ GENE_STATUS_CATEGORIES = {
     'Alterado': 'Altered',
 }
 
+DYSPHAGIA_CATEGORIES = {
+    'No': 'None',
+    'Sólidos': 'Solids',
+    'Líquidos': 'Liquids',
+    'Sólidos+Líquidos': 'Solids+Liquids',
+}
+
 SEX_CATEGORIES = {
     'Hombre': 'Male',
     'Mujer': 'Female'
@@ -261,7 +268,7 @@ class PrecisionALS(Project):
             'peg_colocation_date': self._nutr_data.fecha_colocacion_peg,
             'peg_removal': self._nutr_data.retirada_peg,
             'peg_removal_date': self._nutr_data.fecha_retirada_peg,
-            'dysphagia': self._nutr_data.disfagia,
+            'dysphagia': self._nutr_data.disfagia.map(DYSPHAGIA_CATEGORIES),
             'food_thickener_usage': self._nutr_data.espesante,
             'food_thickener_start': self._nutr_data.inicio_espesante,
             'oral_supplementation': self._nutr_data.supl_oral,
