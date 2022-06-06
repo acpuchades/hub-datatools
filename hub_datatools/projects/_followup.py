@@ -6,19 +6,6 @@ import pandas as pd
 from hub_datatools.serialize import load_data
 
 
-FFILL_COLUMNS = [
-    'portador_vmni',
-    'indicacion_peg',
-    'portador_peg',
-    'disfagia',
-    'espesante',
-    'inicio_espesante',
-    'supl_oral',
-    'inicio_supl_oral',
-    'supl_enteral',
-    'inicio_supl_enteral',
-]
-
 ALSFRS_TOTAL_COLUMNS = [
     'lenguaje',
     'salivacion',
@@ -52,7 +39,7 @@ ALSFRS_GROSS_MOTOR_COLUMNS = [
     'subir_escaleras',
 ]
 
-ALSFRS_RESP_COLUMNS = [
+ALSFRS_RESPIRATORY_COLUMNS = [
     'disnea',
     'ortopnea',
     'insuf_resp',
@@ -98,7 +85,7 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
     df['alsfrs_bulbar_c'] = df[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_fine_motor_c'] = df[ALSFRS_FINE_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_gross_motor_c'] = df[ALSFRS_GROSS_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
-    df['alsfrs_respiratory_c'] = df[ALSFRS_RESP_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
+    df['alsfrs_respiratory_c'] = df[ALSFRS_RESPIRATORY_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_total_c'] = df[ALSFRS_TOTAL_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
 
     df['kings_c'] = _calculate_kings_from_alsfrs(df)
@@ -110,7 +97,6 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
 
 def load_followup_data(datadir: Path = None, alsfrs_data: pd.DataFrame = None,
                        nutr_data: pd.DataFrame = None, resp_data: pd.DataFrame = None) -> pd.DataFrame:
-
     alsfrs_data = alsfrs_data if alsfrs_data is not None else load_data(datadir, 'ufmn/alsfrs')
     nutr_data = nutr_data if nutr_data is not None else load_data(datadir, 'ufmn/nutr')
     resp_data = resp_data if resp_data is not None else load_data(datadir, 'ufmn/resp')
@@ -125,22 +111,3 @@ def load_followup_data(datadir: Path = None, alsfrs_data: pd.DataFrame = None,
 
     _add_calculated_fields(followups, inplace=True)
     return followups
-
-
-def resample_followup_data(df: pd.DataFrame, start: pd.Series, freq: str):
-
-    def _resample_helper(group: pd.DataFrame):
-        assert(group.id_paciente.nunique() == 1)
-        pid = group.iloc[0].id_paciente
-        end = group.index.max()
-        begin = None
-        if pid in start.index:
-            begin = start[pid]
-        if pd.isna(begin):
-            begin = end
-        index = pd.date_range(name='fecha', start=begin, end=end, freq='D')
-        return group.reindex(index).ffill().asfreq(freq)
-
-    df = df.set_index('fecha_visita').groupby('id_paciente').apply(_resample_helper)
-    df = df.drop('id_paciente', axis=1).reset_index()
-    return df
