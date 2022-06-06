@@ -45,7 +45,7 @@ def _export_data_excel(data: DataFrame | Dict[str, DataFrame], path: Path, repla
     if not path.suffix:
         path = path.with_suffix('.xlsx')
 
-    if path.exists and not replace:
+    if path.exists() and not replace:
         raise FileExistsError('Output file already exists')
 
     path.parent.mkdir(exist_ok=True)
