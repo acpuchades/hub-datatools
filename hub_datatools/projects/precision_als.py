@@ -14,8 +14,6 @@ ALSFRS_FIELDS = [
     'salivacion',
     'deglucion',
     'escritura',
-    # 'cortar_con_peg',
-    # 'cortar_sin_peg',
     'vestido',
     'cama',
     'caminar',
@@ -222,10 +220,9 @@ class PrecisionALS(Project):
             ),
             'peg_carrier': self._alsfrs_data.portador_peg,
             'peg_indicated': self._alsfrs_data.indicacion_peg,
-            'kings': self._alsfrs_data.kings,
+            'kings_r': self._alsfrs_data.kings,
             'kings_c': self._alsfrs_data.kings_c,
-            'mitos': self._alsfrs_data.mitos,
-            'mitos_c': self._alsfrs_data.mitos_c,
+            'mitos': self._alsfrs_data.mitos_c,
         }).rename_axis(['patient_id', 'assessment_date'])
 
     def _export_respiratory_data(self) -> DataFrame:
@@ -236,7 +233,7 @@ class PrecisionALS(Project):
             'abg_po2': self._resp_data.pao2,
             'abg_pco2': self._resp_data.paco2,
             'abg_hco3': self._resp_data.hco3,
-            'snip': self._resp_data.pns,
+            'pns': self._resp_data.pns,
             'pcf': self._resp_data.pcf,
             'pcf_below_threshold': self._resp_data.pcf_below_threshold,
             'mip': self._resp_data.pim,
