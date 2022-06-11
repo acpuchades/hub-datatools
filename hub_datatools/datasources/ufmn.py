@@ -219,6 +219,21 @@ def _clean_patient_data(df: DataFrame) -> None:
     apply_transform_pipeline(df, 'exitus', OPT_BOOL_PIPELINE, inplace=True)
     apply_transform_pipeline(df, 'fecha_exitus', OPT_DATE_PIPELINE, inplace=True)
     apply_transform_pipeline(df, 'fecha_nacimiento', OPT_DATE_PIPELINE, inplace=True)
+    apply_transform_pipeline(df, 'provincia_residencia', OPT_STRING_PIPELINE, inplace=True)
+
+    apply_transform_pipeline(df, 'municipio_residencia', OPT_STRING_PIPELINE, inplace=True)
+    df.municipio_residencia.replace({
+        'ALCALA DE GUADAIRA': 'ALCALÀ DE GUADAIRA',
+        'GAVA': 'GAVÀ',
+        'HOSPITALET DE LLOBREGAT': "L'HOSPITALET DE LLOBREGAT",
+        "L' HOSPITALET DE LLOBREGAT": "L'HOSPITALET DE LLOBREGAT",
+        "MOLÃƒÂ D'AVALL": "MOLÍ D'AVALL",
+        'PRAT DE LLOBREGAT': 'EL PRAT DE LLOBREGAT',
+        'SANT JOAN DESPI': 'SANT JOAN DESPÍ',
+        "SANT LLORENÃƒÆ’Ã¢â‚¬Â¡ D'HORTONS": "SANT LLORENÇ D'HORTONS",
+        "SANT SADURNÃ D'ANOIA": "SANT SADURNÍ D'ANOIA",
+        'VALENCIA': 'VALÈNCIA',
+    }, inplace=True)
 
     apply_transform_pipeline(df, 'situacion_laboral_actual', OPT_ENUM_PIPELINE,
                              values=WORKING_STATUS_CATEGORIES, inplace='situacion_laboral_inicial')
