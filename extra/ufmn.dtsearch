@@ -1,0 +1,13 @@
+group confirmed_cases
+    load ufmn/patients
+    include fecha_dx.notna()
+    save
+
+group basic_data
+    load @confirmed_cases
+    include cip != ''
+    select cip fecha_dx
+    save
+
+output @basic_data
+exit
