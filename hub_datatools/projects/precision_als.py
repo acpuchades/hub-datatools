@@ -54,7 +54,7 @@ SMOKING_CATEGORIES = {
 
 COGNITIVE_DX_CATEGORIES = {
     'DTA': 'AD',
-    'DFT': 'DFT',
+    'DFT': 'FTD',
     'DCL-Cognitivo': 'MCI',
     'DCL-Conductual': 'MBI',
     'DCL-Mixto': 'MCI+MBI',
