@@ -114,7 +114,7 @@ URG_DISCHARGE_TYPE_CATEGORIES = {
 }
 
 
-@project('precision_als')
+@project('precision-als')
 class PrecisionALS(Project):
 
     def __init__(self, datadir: Path):
