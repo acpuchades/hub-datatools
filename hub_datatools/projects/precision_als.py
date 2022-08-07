@@ -47,7 +47,7 @@ SEX_CATEGORIES = {
 }
 
 SMOKING_CATEGORIES = {
-    'Fumador': 'Active',
+    'Activo': 'Active',
     'Exfumador': 'Ceased',
     'Nunca': 'Never',
 }
