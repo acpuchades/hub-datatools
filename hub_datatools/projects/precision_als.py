@@ -161,6 +161,8 @@ class PrecisionALS(Project):
         logging.info('Precision ALS: Exporting patient data')
 
         return DataFrame({
+            'nhc': self._patients.nhc,
+            'cip': self._patients.cip,
             'birthdate': self._patients.fecha_nacimiento,
             'sex': self._patients.sexo.map(SEX_CATEGORIES),
             'smoking': self._patients.fumador.map(SMOKING_CATEGORIES),
