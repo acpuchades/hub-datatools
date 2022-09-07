@@ -203,8 +203,12 @@ class PrecisionALS(Project):
             'swallowing': self._alsfrs_data.deglucion,
             'handwriting': self._alsfrs_data.escritura,
             'cutting': self._alsfrs_data.cortar,
-            'cutting_peg': self._alsfrs_data.cortar_con_peg,
-            'cutting_no_peg': self._alsfrs_data.cortar_sin_peg,
+            'cutting_peg': self._alsfrs_data.cortar_con_peg.where(
+                self._alsfrs_data.portador_peg.fillna(True)
+            ),
+            'cutting_no_peg': self._alsfrs_data.cortar_sin_peg.where(
+                self._alsfrs_data.portador_peg.fillna(False) == False
+            ),
             'dressing': self._alsfrs_data.vestido,
             'bed': self._alsfrs_data.cama,
             'walking': self._alsfrs_data.caminar,
@@ -221,7 +225,6 @@ class PrecisionALS(Project):
                 self._alsfrs_data.alsfrs_total
             ),
             'peg_carrier': self._alsfrs_data.portador_peg,
-            'peg_indicated': self._alsfrs_data.indicacion_peg,
             'kings_r': self._alsfrs_data.kings,
             'kings_c': self._alsfrs_data.kings_c,
             'mitos': self._alsfrs_data.mitos_c,

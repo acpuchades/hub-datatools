@@ -78,9 +78,25 @@ def _add_calculated_fields(df: pd.DataFrame, inplace: bool = False) -> Optional[
     if not inplace:
         df = df.copy()
 
-    df['cortar'] = None
-    df.cortar = df[df.portador_peg.fillna(False)].cortar_con_peg
-    df.cortar = df[~df.portador_peg.fillna(False)].cortar_sin_peg
+    # known peg carriers
+    cutting_peg = df[df.portador_peg == True].cortar_con_peg
+    df.loc[cutting_peg.index, 'cortar'] = cutting_peg
+
+    # known peg non-carriers
+    cutting_nopeg = df[df.portador_peg == False].cortar_sin_peg
+    df.loc[cutting_nopeg.index, 'cortar'] = cutting_nopeg
+
+    # we only score peg version of cutting item for peg carriers
+    cutting_peg_nonzero = df[df.portador_peg.isna() & (df.cortar_con_peg != 0)].cortar_con_peg
+    df.loc[cutting_peg_nonzero.index, 'cortar'] = cutting_peg_nonzero
+
+    # we only score non-peg version of cutting item for peg non-carriers
+    cutting_nopeg_nonzero = df[df.portador_peg.isna() & (df.cortar_sin_peg != 0)].cortar_sin_peg
+    df.loc[cutting_nopeg_nonzero.index, 'cortar'] = cutting_nopeg_nonzero
+
+    # we don't know peg status, but it doesn't matter
+    cutting_all_equal = df[df.cortar_con_peg == df.cortar_sin_peg].cortar_con_peg
+    df.loc[cutting_all_equal.index, 'cortar'] = cutting_all_equal
 
     df['alsfrs_bulbar_c'] = df[ALSFRS_BULBAR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
     df['alsfrs_fine_motor_c'] = df[ALSFRS_FINE_MOTOR_COLUMNS].sum(axis=1, skipna=False).astype('Int64')
