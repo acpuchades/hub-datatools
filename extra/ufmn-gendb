@@ -1,0 +1,20 @@
+#!/bin/sh
+
+UFMN_DATABASE=sample/ufmn-2022-05-03.sqlite
+
+HUB_HOSP_EXCEL_FILE=sample/hub-15-03-2022.xlsx
+HUB_HOSP_EXCEL_TAB="TAULA HOSP"
+HUB_HOSP_COLUMN_ROW=3
+
+HUB_URG_EXCEL_FILE=sample/hub-15-03-2022.xlsx
+HUB_URG_EXCEL_TAB="taula urg"
+HUB_URG_COLUMN_ROW=4
+
+dt-import -d data -r \
+    --ufmn "$UFMN_DATABASE" \
+    --hub-hosp "$HUB_HOSP_EXCEL_FILE" \
+        --hub-hosp-excel-tab "$HUB_HOSP_EXCEL_TAB" \
+        --hub-hosp-column-row $HUB_HOSP_COLUMN_ROW \
+    --hub-urg "$HUB_URG_EXCEL_FILE" \
+        --hub-urg-excel-tab "$HUB_URG_EXCEL_TAB" \
+        --hub-urg-column-row $HUB_URG_COLUMN_ROW
